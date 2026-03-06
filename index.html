@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deploy or Die — DevOps Lifecycle Card Game</title>
+  <meta name="description" content="A DevOps lifecycle card game for workshops and retrospectives." />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080c10; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
+const PHASES = [
+  { id: 1, name: "MVP Launch",      subtitle: "Ship fast, survive chaos",        tokens: 8  },
+  { id: 2, name: "Early Growth",    subtitle: "Users are watching",              tokens: 9  },
+  { id: 3, name: "Scale-Up",        subtitle: "Cracks begin to show",            tokens: 10 },
+  { id: 4, name: "Enterprise Push", subtitle: "Compliance knocks on the door",   tokens: 10 },
+  { id: 5, name: "Stability War",   subtitle: "Debt demands its price",          tokens: 11 },
+  { id: 6, name: "Platform Maturity","subtitle": "Legacy vs. innovation",        tokens: 12 },
+];
+
+const CATEGORIES = [
+  { id: "features",    label: "New Features",   icon: "⚡", color: "#00ff9d", desc: "Drive user growth & satisfaction. Low investment = stagnation." },
+  { id: "techdebt",   label: "Tech Debt",       icon: "🔧", color: "#ffb800", desc: "Refactoring & code quality. Neglect causes velocity collapse." },
+  { id: "security",   label: "Security",        icon: "🛡", color: "#ff4d6d", desc: "Patches, audits, hardening. Breaches cause score devastation." },
+  { id: "stability",  label: "Stability/Uptime",icon: "📡", color: "#4dc3ff", desc: "SRE work, monitoring, runbooks. Outages burn user trust fast." },
+  { id: "compliance", label: "Compliance",      icon: "📋", color: "#b47dff", desc: "GDPR, SOC2, audits. Failures = fines & reputation damage." },
+  { id: "performance",label: "Performance",     icon: "🚀", color: "#ff9f43", desc: "Speed, DB optimisation, caching. Slowness drives churn." },
+];
+
+// Descriptions are intentionally vague — players must GUESS which domain each card threatens.
+// 'type' is hidden from the UI until after commit. debtIfIgnored is never shown to players.
+const INCIDENT_DECK = [
+  // ── Security ──
+  { id:"s1", type:"security",    title:"Zero-Day in the Wild",         icon:"💀", severity:3, phases:[1,2,3,4,5,6], desc:"Researchers published a working exploit overnight. Your engineers are scrambling to assess exposure across every system.", debtIfIgnored:22 },
+  { id:"s2", type:"security",    title:"Credential Stuffing Wave",     icon:"🔓", severity:3, phases:[1,2,3,4,5,6], desc:"Thousands of login attempts using leaked passwords from another breach. Accounts are being hijacked in real time.", debtIfIgnored:24 },
+  { id:"s3", type:"security",    title:"Rogue Dependency",             icon:"📦", severity:2, phases:[1,2,3,4,5,6], desc:"A widely-used open source package was silently compromised in its latest release. Half the industry is affected.", debtIfIgnored:14 },
+  { id:"s4", type:"security",    title:"Insider Threat Detected",      icon:"🕵", severity:3, phases:[3,4,5,6],     desc:"Anomalous data access patterns suggest a current or former employee is exfiltrating sensitive records.", debtIfIgnored:20 },
+  { id:"s5", type:"security",    title:"API Key Leaked to GitHub",     icon:"🗝", severity:2, phases:[1,2,3,4,5,6], desc:"A developer accidentally committed live credentials to a public repository. The clock is ticking before bots find it.", debtIfIgnored:12 },
+  // ── Stability ──
+  { id:"st1",type:"stability",   title:"Cascading Service Failure",    icon:"🔥", severity:3, phases:[1,2,3,4,5,6], desc:"One microservice went down and took three others with it. The on-call phone won't stop ringing.", debtIfIgnored:22 },
+  { id:"st2",type:"stability",   title:"Silent Data Corruption",       icon:"🗄", severity:3, phases:[2,3,4,5,6],   desc:"Writes have been silently corrupting records for 48 hours. Nobody noticed until a user complained their order history vanished.", debtIfIgnored:26 },
+  { id:"st3",type:"stability",   title:"Memory Leak Snowball",         icon:"🧠", severity:2, phases:[1,2,3,4,5,6], desc:"A gradual memory leak has been accumulating for days. Servers are now restarting every few hours and users are noticing.", debtIfIgnored:14 },
+  { id:"st4",type:"stability",   title:"Deployment Rollback Crisis",   icon:"⏪", severity:2, phases:[1,2,3,4,5,6], desc:"The latest release broke checkout for 20% of users. Rolling back sounds simple — except nobody practised it.", debtIfIgnored:16 },
+  { id:"st5",type:"stability",   title:"Third-Party Outage Dependency",icon:"🔗", severity:2, phases:[2,3,4,5,6],   desc:"A payment provider you depend on is down. You have no fallback. Revenue is halting with every passing minute.", debtIfIgnored:18 },
+  // ── Performance ──
+  { id:"p1", type:"performance", title:"Viral Traffic Surge",          icon:"📈", severity:2, phases:[1,2,3,4,5,6], desc:"A tweet from a major influencer sent 50× normal traffic your way. This is the moment you've been waiting for — or dreading.", debtIfIgnored:16 },
+  { id:"p2", type:"performance", title:"Slow API Under Load",          icon:"🐌", severity:2, phases:[1,2,3,4,5,6], desc:"Response times have ballooned to 8 seconds at peak. Users are rage-tweeting and the app store reviews are turning red.", debtIfIgnored:13 },
+  { id:"p3", type:"performance", title:"Database Query Explosion",     icon:"💣", severity:3, phases:[3,4,5,6],     desc:"An unindexed query made it to production. Under load it's doing full table scans. The database server is melting.", debtIfIgnored:20 },
+  { id:"p4", type:"performance", title:"CDN Misconfiguration",         icon:"🌐", severity:2, phases:[2,3,4,5,6],   desc:"A config change bypassed the CDN entirely. Every static asset is now hitting your origin server directly.", debtIfIgnored:12 },
+  // ── Compliance ──
+  { id:"c1", type:"compliance",  title:"Surprise Regulatory Audit",    icon:"🏛", severity:3, phases:[2,3,4,5,6],   desc:"An unannounced regulator visit. They want evidence of controls, data handling policies, and audit logs — right now.", debtIfIgnored:22 },
+  { id:"c2", type:"compliance",  title:"Data Subject Access Request",  icon:"📜", severity:2, phases:[2,3,4,5,6],   desc:"A customer invoked their right to erasure under GDPR. Your team has 72 hours to comply or face formal proceedings.", debtIfIgnored:16 },
+  { id:"c3", type:"compliance",  title:"SOC 2 Audit Prep Demand",      icon:"📁", severity:2, phases:[3,4,5,6],     desc:"A major enterprise client requires SOC 2 Type II before signing. You have two weeks. Do you have the evidence trail?", debtIfIgnored:18 },
+  { id:"c4", type:"compliance",  title:"Accessibility Lawsuit Filed",  icon:"⚖", severity:3, phases:[3,4,5,6],     desc:"A disability advocacy group has filed a complaint. Your product doesn't meet WCAG 2.1 standards. Legal fees start today.", debtIfIgnored:20 },
+  // ── Tech Debt ──
+  { id:"td1",type:"techdebt",    title:"Velocity Collapse",            icon:"🐢", severity:2, phases:[2,3,4,5,6],   desc:"Engineers can't ship anymore. Every new feature requires touching three intertwined legacy modules nobody understands.", debtIfIgnored:18 },
+  { id:"td2",type:"techdebt",    title:"On-Call Engineer Quits",       icon:"😩", severity:2, phases:[3,4,5,6],     desc:"Your most experienced engineer — the only one who understands the core system — handed in their notice this morning.", debtIfIgnored:16 },
+  { id:"td3",type:"techdebt",    title:"Test Suite Collapse",          icon:"🧪", severity:2, phases:[2,3,4,5,6],   desc:"So many tests are broken or skipped that CI is just theatre. A bad deploy made it to production undetected.", debtIfIgnored:14 },
+  { id:"td4",type:"techdebt",    title:"Monolith Deployment Gridlock", icon:"🧱", severity:3, phases:[4,5,6],       desc:"The monolith is now so large that a deployment takes 4 hours and any failure requires full rollback. Delivery has stopped.", debtIfIgnored:24 },
+  { id:"td5",type:"techdebt",    title:"Documentation Desert",         icon:"📭", severity:2, phases:[3,4,5,6],     desc:"A critical integration was undocumented. The engineer who built it left. Nobody knows how it works. It just broke.", debtIfIgnored:12 },
+  // ── Opportunities ──
+  { id:"o1", type:"opportunity", title:"Fortune 500 Wants to Sign",    icon:"💼", severity:0, phases:[3,4,5,6],     desc:"A major enterprise is ready to commit — pending evidence you can handle their compliance and uptime requirements.", debtIfIgnored:0 },
+  { id:"o2", type:"opportunity", title:"Open Source Your Core",        icon:"🌍", severity:0, phases:[2,3,4,5,6],   desc:"Your community is buzzing. Open sourcing your engine could drive massive adoption — if the code is actually presentable.", debtIfIgnored:0 },
+  { id:"o3", type:"opportunity", title:"Performance Benchmark Goes Viral",icon:"🏆",severity:0,phases:[2,3,4,5,6],  desc:"An independent blogger published a speed comparison. You could dominate it — if you've done the work.", debtIfIgnored:0 },
+  { id:"o4", type:"opportunity", title:"Acquire a Competitor's Users", icon:"🎯", severity:0, phases:[1,2,3],       desc:"A rival just shut down. Their users are looking for alternatives right now. Can your product absorb the influx?", debtIfIgnored:0 },
+];
+
+const DEVOPS_PRINCIPLES = [
+  "🔄 Continuous Improvement — Small, frequent changes beat big-bang releases.",
+  "📊 Measure Everything — You can't improve what you don't monitor.",
+  "🤝 Shared Responsibility — Dev & Ops own quality together.",
+  "🚦 Shift Left — Security & testing belong in development, not after.",
+  "⚡ Automate Toil — Manual repetitive work is debt in disguise.",
+  "💡 Fail Fast, Learn Faster — Incidents are learning opportunities.",
+  "🔁 Feedback Loops — Shorter loops = faster course correction.",
+  "🛡 Security is Everyone's Job — Not just a compliance checkbox.",
+];
+
+// ─── PER-PHASE RETROSPECTIVE CONTENT ─────────────────────────────────────────
+// Shown after all teams finish a sprint round — the core educational payload.
+
+const PHASE_RETROS = {
+  1: {
+    phase: "MVP Launch",
+    summary: "You shipped. But shipping is just the beginning. The choices you made under pressure in this sprint will echo through every sprint that follows. Speed without discipline creates invisible debt — and debt always demands repayment.",
+    principles: [
+      {
+        icon: "🚀",
+        title: "You Build It, You Run It",
+        practice: "DevOps / Shared Ownership",
+        body: "When developers own the production health of their features, quality improves dramatically. The team that ships the code should be on the hook when it breaks at 2am — this incentive alignment is foundational to DevOps culture.",
+        realWorld: "Amazon pioneered this model in 2006. Teams went from 'throw it over the wall to ops' to owning their services end-to-end.",
+      },
+      {
+        icon: "🔁",
+        title: "Continuous Integration from Day One",
+        practice: "CI/CD",
+        body: "Merging code frequently into a shared branch and running automated tests prevents 'integration hell'. A working CI pipeline — even a simple one — is not optional. It's the foundation everything else builds on.",
+        realWorld: "Teams practising CI merge code multiple times per day. Teams without it often spend the last week of a sprint just getting things to work together.",
+      },
+      {
+        icon: "🛡",
+        title: "Security is Not a Sprint",
+        practice: "DevSecOps / Shift Left",
+        body: "Security hardening retroactively is 10× more expensive than building it in. Even at MVP stage: rotate credentials, scan dependencies, never commit secrets. The zero-day you ignored in this sprint was a choice — not bad luck.",
+        realWorld: "The 2021 Log4Shell vulnerability exploited a dependency issue present in millions of projects. Organisations with dependency scanning caught it in hours; others took weeks.",
+      },
+      {
+        icon: "📊",
+        title: "If It Isn't Monitored, It Doesn't Exist",
+        practice: "Observability",
+        body: "You cannot improve — or defend — what you cannot see. Logs, metrics and traces from day one mean that when something breaks, you understand why. Flying blind is a choice, not a constraint.",
+        realWorld: "The DORA research program found that elite teams restore service 2,604× faster than low performers. The difference is observability and automated alerting.",
+      },
+    ],
+    reflection: "Which incidents hit you that you didn't see coming? What would you invest differently in Sprint 2?",
+    nextHint: "Sprint 2 brings real users and real scrutiny. Security and stability gaps you ignored here will start to compound.",
+  },
+  2: {
+    phase: "Early Growth",
+    summary: "Users are real now. So are expectations. Growth exposes every shortcut you took in the MVP. The codebase that was 'good enough' yesterday is becoming a barrier today. The teams that survive growth are the ones who started paying the debt early.",
+    principles: [
+      {
+        icon: "🔧",
+        title: "Technical Debt is a Business Risk",
+        practice: "Technical Debt Management",
+        body: "Debt isn't just slow code — it's slow teams, brittle deploys, burnt-out engineers, and features that take weeks instead of days. Every sprint you ignore it, the interest compounds. Track it, prioritise it, pay it down deliberately.",
+        realWorld: "Stripe estimates that their engineering team spends 30% of time on debt reduction intentionally. Teams that don't create a self-reinforcing spiral where new features become harder and harder to ship.",
+      },
+      {
+        icon: "🔁",
+        title: "Feedback Loops Must Be Short",
+        practice: "Continuous Delivery / Trunk-Based Development",
+        body: "The longer it takes to find out a change broke something, the more expensive the fix. Automated tests, feature flags, and staged rollouts mean feedback arrives in minutes — not when a customer complains.",
+        realWorld: "Netflix deploys hundreds of times per day using canary deployments. A problematic release reaches 1% of users before full rollout — giving a near-instant feedback loop.",
+      },
+      {
+        icon: "📈",
+        title: "Design for Load Before You Need It",
+        practice: "Capacity Planning / Performance Engineering",
+        body: "Viral moments don't announce themselves. Load testing, horizontal scaling strategies, and caching layers are investments that pay off exactly once — in the moment everything is on the line.",
+        realWorld: "In 2018, the FIFA World Cup streaming service suffered massive outages because load testing hadn't kept pace with actual user growth. The brand damage lasted far beyond the incident.",
+      },
+      {
+        icon: "🤝",
+        title: "Blameless Post-Mortems",
+        practice: "Incident Review Culture",
+        body: "When incidents happen, the goal is learning — not punishment. A blameless culture means engineers report honestly, systemic causes get fixed, and the same failure doesn't repeat. Blame culture hides problems until they become catastrophic.",
+        realWorld: "Google's SRE handbook mandates blameless post-mortems. Their finding: incidents are almost always systemic — wrong incentives, missing tooling, unclear processes — not individual failures.",
+      },
+    ],
+    reflection: "Did your velocity suffer from early shortcuts? Which incident type surprised you most this round?",
+    nextHint: "Scaling brings architectural stress. The cracks in your foundation that were hairlines in Sprint 2 become fault lines in Sprint 3.",
+  },
+  3: {
+    phase: "Scale-Up",
+    summary: "Scale is where architecture debt becomes visible to everyone — including your customers. The systems that got you here won't get you there. Teams that survive this phase invested in operational excellence before they needed it.",
+    principles: [
+      {
+        icon: "🏗",
+        title: "Automate Everything That Hurts",
+        practice: "Infrastructure as Code / Toil Reduction",
+        body: "If a human is doing the same operational task repeatedly, that's toil — and toil is risk. Manual deployments, manual scaling, manual config changes. Every automated process is one fewer thing that breaks because someone was tired at 11pm.",
+        realWorld: "Google's SRE teams have a formal 50% toil cap — if operational toil exceeds half of engineering time, the team stops feature work until automation reduces it.",
+      },
+      {
+        icon: "🧪",
+        title: "Test in Production (Safely)",
+        practice: "Chaos Engineering / Feature Flags",
+        body: "Netflix's Chaos Monkey deliberately kills production services to ensure the system is resilient. You can't know your failovers work until they're tested. Feature flags let you control blast radius and roll back instantly.",
+        realWorld: "Netflix's Simian Army, including Chaos Monkey, has been running in production since 2011. The philosophy: if it hurts, do it more often until it doesn't.",
+      },
+      {
+        icon: "🔗",
+        title: "Decouple to Survive",
+        practice: "Microservices / Event-Driven Architecture",
+        body: "Monoliths scale poorly under stress. Cascading failures happen when services are tightly coupled. Loose coupling — through queues, circuit breakers, and independent deployments — means one service can fail without taking everything down.",
+        realWorld: "Amazon's 2002 Bezos mandate ('all teams will expose data through service interfaces') created the foundation for AWS. Decoupling was an engineering decision that became a $90B business.",
+      },
+      {
+        icon: "📉",
+        title: "SLOs, SLIs and Error Budgets",
+        practice: "Site Reliability Engineering (SRE)",
+        body: "How much downtime is acceptable? Define it. Measure it. An error budget is the gap between 100% and your SLO — it's the team's license to take risk. Burn the budget too fast and the team must slow down to stabilise. This is how reliability and velocity stay in balance.",
+        realWorld: "Google's SRE book introduced error budgets as a way to eliminate the Dev/Ops conflict. When the budget is spent, everyone agrees: stability work takes priority.",
+      },
+    ],
+    reflection: "Did a cascading failure catch you off guard? How would circuit breakers or canary deployments have changed your sprint?",
+    nextHint: "Enterprise customers and compliance requirements arrive in Sprint 4. Start thinking about audit trails and access controls — they take time to build.",
+  },
+  4: {
+    phase: "Enterprise Push",
+    summary: "Enterprise means revenue — but also accountability. Compliance isn't bureaucracy for its own sake; it's evidence that your systems are trustworthy. Teams that treat compliance as an afterthought discover it is extremely expensive to bolt on.",
+    principles: [
+      {
+        icon: "📋",
+        title: "Compliance as Code",
+        practice: "Policy as Code / Automated Compliance",
+        body: "Manual compliance audits are slow, error-prone, and don't scale. When compliance controls are codified and automated — access reviews, audit logs, encryption checks — they run on every deployment. Evidence is always current.",
+        realWorld: "HashiCorp Sentinel and Open Policy Agent (OPA) let teams encode compliance rules as code, checked in CI/CD pipelines. Organisations using this approach reduced audit preparation time from weeks to hours.",
+      },
+      {
+        icon: "🔐",
+        title: "Zero Trust Architecture",
+        practice: "Zero Trust Security",
+        body: "Never trust, always verify. In a Zero Trust model, nothing inside or outside the network is trusted by default. Every access request is authenticated and authorised. This limits blast radius when credentials are compromised.",
+        realWorld: "Google's BeyondCorp initiative, started after a major breach in 2009, moved access controls away from network perimeters entirely. It became the blueprint for modern Zero Trust.",
+      },
+      {
+        icon: "🗂",
+        title: "Immutable Audit Trails",
+        practice: "Observability / Compliance",
+        body: "Who changed what, when, and why? In regulated environments, this isn't optional. Centralised, tamper-evident logging isn't just a compliance requirement — it's how you debug mysterious production incidents and prove you're operating with integrity.",
+        realWorld: "The EU's GDPR requires organisations to demonstrate lawful processing of personal data. Without audit logs, this is impossible — and fines reach 4% of global annual revenue.",
+      },
+      {
+        icon: "♿",
+        title: "Accessibility is Not Optional",
+        practice: "Inclusive Design / Compliance",
+        body: "WCAG 2.1 accessibility standards aren't just legal requirements — they represent good engineering. Accessible systems are more robust, better structured, and usable by more people. Retrofitting accessibility is orders of magnitude harder than building it in.",
+        realWorld: "Domino's Pizza lost a landmark US Supreme Court accessibility lawsuit in 2019. The case established that digital products must comply with ADA requirements — a precedent affecting every product team.",
+      },
+    ],
+    reflection: "How much of your capacity did compliance consume this sprint? Would investing earlier have reduced the cost?",
+    nextHint: "Sprints 5 and 6 are where years of technical decisions converge. Debt you've been ignoring will start actively blocking feature work.",
+  },
+  5: {
+    phase: "Stability War",
+    summary: "This is where teams that neglected the foundation begin to break. Stability isn't glamorous — but it is the competitive moat. Every hour of downtime, every degraded experience, every slow page load is leaking trust that's expensive to rebuild.",
+    principles: [
+      {
+        icon: "📡",
+        title: "Observability is Not Monitoring",
+        practice: "Distributed Tracing / Observability",
+        body: "Monitoring tells you something is wrong. Observability tells you why. Logs, metrics, and distributed traces working together give teams the ability to ask arbitrary questions about system state — including questions they didn't think to ask before the incident.",
+        realWorld: "Honeycomb's research found that teams with high observability resolve incidents 50% faster and suffer 40% fewer repeat incidents. The investment in instrumentation is returned immediately in reduced MTTR.",
+      },
+      {
+        icon: "🔄",
+        title: "GitOps and Declarative Infrastructure",
+        practice: "GitOps / Infrastructure as Code",
+        body: "When infrastructure is declared in code and managed through Git, every change is reviewed, auditable, and reversible. The desired state is always explicit. Drift — the enemy of stable systems — becomes visible and correctable.",
+        realWorld: "Weaveworks coined 'GitOps' in 2017. Organisations adopting it report significantly fewer configuration-related incidents because infrastructure drift is detected and corrected automatically.",
+      },
+      {
+        icon: "🧯",
+        title: "Design for Failure",
+        practice: "Resilience Engineering",
+        body: "Not 'if' but 'when'. Systems fail. Dependencies fail. Networks partition. Designing explicitly for failure — graceful degradation, circuit breakers, bulkheads, retry logic with backoff — means user impact is bounded even when components fail.",
+        realWorld: "AWS's cell-based architecture isolates failures to a limited 'blast radius'. When one region or availability zone fails, it cannot cascade to others — a design decision that has prevented numerous total outages.",
+      },
+      {
+        icon: "⚡",
+        title: "The Deployment Pipeline is a Product",
+        practice: "Platform Engineering / Internal Developer Platforms",
+        body: "A slow, fragile deployment pipeline is a productivity tax paid on every feature. Treating your CI/CD pipeline as a product — with reliability targets, performance budgets, and a dedicated owner — compounds positively across every team that uses it.",
+        realWorld: "Spotify's 'Golden Path' initiative created standardised, high-quality deployment paths for all teams. Developer satisfaction and deployment frequency both increased significantly.",
+      },
+    ],
+    reflection: "How much of your score was determined by decisions made in earlier sprints? What would you change if you started over?",
+    nextHint: "Final sprint. This is where strategic choices and accumulated debt define the winner. Legacy vs. innovation — every team faces this reckoning.",
+  },
+  6: {
+    phase: "Platform Maturity",
+    summary: "Platform maturity isn't an end state — it's a continuous practice. The teams that win at this stage aren't the ones who wrote the most features. They're the ones who built systems, cultures, and feedback loops that could sustain and improve themselves.",
+    principles: [
+      {
+        icon: "🏆",
+        title: "The Four Key DORA Metrics",
+        practice: "Engineering Effectiveness / DORA",
+        body: "Deployment Frequency, Lead Time for Changes, Change Failure Rate, and Mean Time to Recovery are the four research-backed metrics that predict software delivery performance. Elite teams deploy on demand, recover in under an hour, and change failure rates below 5%.",
+        realWorld: "The DORA State of DevOps report (10+ years of data, 33,000+ respondents) shows that high performers are 2× more likely to exceed profitability and market share goals. DevOps is not a cost — it's a growth strategy.",
+      },
+      {
+        icon: "🌱",
+        title: "Platform Engineering Enables Scale",
+        practice: "Internal Developer Platforms (IDPs)",
+        body: "When platform teams create self-service infrastructure, golden paths, and internal developer portals, product teams ship faster without needing deep infrastructure expertise. Cognitive load decreases. Delivery speed increases. This is the compounding return on platform investment.",
+        realWorld: "Backstage, Spotify's internal developer portal, became an open-source project and is now used by hundreds of companies. The ROI: developers spend significantly less time on infrastructure and more on product.",
+      },
+      {
+        icon: "🔬",
+        title: "Continuous Experimentation",
+        practice: "A/B Testing / Experimentation Platforms",
+        body: "Mature products don't guess — they experiment. Feature flags that enable A/B testing, multivariate experiments, and gradual rollouts turn product decisions from opinions into evidence. This closes the loop between engineering investment and user outcome.",
+        realWorld: "Microsoft runs over 10,000 concurrent experiments across its products. Booking.com runs 1,000. Experimentation at scale is only possible when your infrastructure and deployment pipeline were built for it from the start.",
+      },
+      {
+        icon: "🤖",
+        title: "AI-Augmented Engineering",
+        practice: "AI-Assisted Development / AIOps",
+        body: "The frontier of DevOps is AI-assisted operations: anomaly detection that catches incidents before users notice, AI-assisted code review, automated root cause analysis, and predictive scaling. These capabilities compound on top of observability, automation, and clean architecture — which is why the foundations matter so much.",
+        realWorld: "GitHub Copilot studies show 55% faster task completion for developers. AIOps tools from Dynatrace and Datadog automatically identify root causes in complex distributed systems in seconds, not hours.",
+      },
+    ],
+    reflection: "Looking back across all six sprints: what was the single most expensive decision your team made? What would the DevOps principles you learned today change about how you work tomorrow?",
+    nextHint: null,
+  },
+};
+
+const ACHIEVEMENT_BADGES = [
+  { id:"zero_debt",   label:"Zero Debt Hero",      icon:"🏅", cond: s => s.techdebt >= 3 },
+  { id:"fortress",    label:"Fort Knox",            icon:"🛡", cond: s => s.security >= 3 },
+  { id:"speedster",   label:"Speed Demon",          icon:"🚀", cond: s => s.performance >= 3 },
+  { id:"always_on",   label:"Five Nines",           icon:"📡", cond: s => s.stability >= 3 },
+  { id:"compliant",   label:"By the Book",          icon:"📋", cond: s => s.compliance >= 2 },
+  { id:"feature_king",label:"Feature Factory",      icon:"⚡", cond: s => s.features >= 4 },
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function dealIncidents(phase, usedIds = new Set()) {
+  // Count escalates per phase to force brutal trade-offs
+  const count = [3, 4, 5, 5, 6, 6][phase - 1] || 4;
+
+  // Phase-weighted pools: early = security/stability; late = techdebt/compliance/performance
+  const earlyPreferred  = ["security","stability"];
+  const midPreferred    = ["security","stability","compliance","techdebt"];
+  const latePreferred   = ["techdebt","compliance","performance","stability"];
+  const preferred = phase <= 2 ? earlyPreferred : phase <= 4 ? midPreferred : latePreferred;
+
+  // Exclude cards used in previous rounds
+  const eligible = INCIDENT_DECK.filter(c => c.phases.includes(phase) && !usedIds.has(c.id));
+  const pref  = [...eligible.filter(c => preferred.includes(c.type))].sort(() => Math.random() - 0.5);
+  const other = [...eligible.filter(c => !preferred.includes(c.type))].sort(() => Math.random() - 0.5);
+
+  const pool = [...pref, ...other];
+  return pool.slice(0, count);
+}
+
+function scoreAllocation(allocation, incidents, phase) {
+  let score = 0;
+  let breakdown = [];
+  let debtAccrued = 0;
+
+  // Base feature score (value delivery)
+  // Early phases: features score well; late phases require debt investment to maintain velocity
+  const debtMultiplier = phase <= 2 ? 1.0 : phase <= 4 ? (allocation.techdebt >= 2 ? 1.15 : 0.55) : (allocation.techdebt >= 3 ? 1.2 : allocation.techdebt >= 2 ? 0.7 : 0.35);
+  const featScore = allocation.features * 9 * debtMultiplier;
+  score += Math.round(featScore);
+  breakdown.push({ label: "Feature delivery", value: Math.round(featScore), color: "#00ff9d" });
+
+  // Incident resolution
+  incidents.forEach(inc => {
+    const val = allocation[inc.type] || 0;
+    if (inc.type === "opportunity") {
+      let bonus = 0;
+      if (inc.id === "o1" && allocation.compliance >= 2 && allocation.stability >= 2) bonus = 22;
+      if (inc.id === "o2" && allocation.techdebt >= 2 && allocation.security >= 1) bonus = 18;
+      if (inc.id === "o3" && allocation.performance >= 3) bonus = 22;
+      if (inc.id === "o4" && allocation.features >= 3 && allocation.stability >= 1) bonus = 18;
+      if (bonus > 0) { score += bonus; breakdown.push({ label: `✨ ${inc.title}`, value: bonus, color: "#ffb800" }); }
+    } else {
+      const threshold = inc.severity === 3 ? 2 : 1;
+      if (val < threshold) {
+        const penalty = inc.debtIfIgnored;
+        score -= penalty;
+        debtAccrued += inc.debtIfIgnored;
+        breakdown.push({ label: `💥 ${inc.title}`, value: -penalty, color: "#ff4d6d" });
+      } else {
+        const defense = Math.round(inc.debtIfIgnored * 0.35);
+        score += defense;
+        breakdown.push({ label: `🛡 Handled: ${inc.title}`, value: defense, color: "#4dc3ff" });
+      }
+    }
+  });
+
+  // Stability bonus
+  if (allocation.stability >= 2) { score += 5; breakdown.push({ label: "Uptime bonus", value: 5, color: "#4dc3ff" }); }
+
+  return { score: Math.max(score, 0), breakdown, debtAccrued };
+}
+
+function getGrade(totalScore, rounds) {
+  const avg = totalScore / rounds;
+  if (avg >= 40) return { grade: "S", label: "Elite SRE Team", color: "#00ff9d" };
+  if (avg >= 28) return { grade: "A", label: "Shipping Champions", color: "#ffb800" };
+  if (avg >= 16) return { grade: "B", label: "Solid Engineers", color: "#4dc3ff" };
+  if (avg >= 6)  return { grade: "C", label: "Technical Debt Magnets", color: "#ff9f43" };
+  return { grade: "D", label: "On-Call Nightmare", color: "#ff4d6d" };
+}
+
+// ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
+function TokenSlider({ cat, value, onChange, maxTokens, totalUsed }) {
+  const canIncrease = totalUsed < maxTokens;
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.04)", border: `1px solid ${cat.color}33`,
+      borderRadius: 12, padding: "14px 16px", marginBottom: 10,
+      transition: "all 0.2s", boxShadow: value > 0 ? `0 0 12px ${cat.color}22` : "none"
+    }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap: 8 }}>
+          <span style={{ fontSize: 20 }}>{cat.icon}</span>
+          <div>
+            <div style={{ fontFamily:"'Space Mono',monospace", fontSize:13, color: cat.color, fontWeight:700 }}>{cat.label}</div>
+            <div style={{ fontSize:10, color:"#666", maxWidth:220, lineHeight:1.4 }}>{cat.desc}</div>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <button onClick={() => onChange(Math.max(0, value-1))}
+            style={{ width:28, height:28, borderRadius:6, border:`1px solid ${cat.color}44`, background:"transparent",
+              color: cat.color, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+          <div style={{ width:32, textAlign:"center", fontFamily:"'Space Mono',monospace", fontSize:18, fontWeight:700, color:"#fff" }}>
+            {value}
+          </div>
+          <button onClick={() => canIncrease && onChange(value+1)} disabled={!canIncrease}
+            style={{ width:28, height:28, borderRadius:6, border:`1px solid ${cat.color}${canIncrease?"88":"22"}`,
+              background: canIncrease ? `${cat.color}22` : "transparent",
+              color: canIncrease ? cat.color : "#333", fontSize:16, cursor: canIncrease?"pointer":"not-allowed",
+              display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+        </div>
+      </div>
+      <div style={{ background:"#111", borderRadius:4, height:6, overflow:"hidden" }}>
+        <div style={{ width:`${(value/6)*100}%`, height:"100%", background:`linear-gradient(90deg,${cat.color}88,${cat.color})`,
+          transition:"width 0.3s", borderRadius:4 }} />
+      </div>
+    </div>
+  );
+}
+
+function IncidentCard({ inc, allocation }) {
+  const revealed = allocation !== null; // only show outcomes after commit
+
+  // Outcome calculation (only used post-commit)
+  const relevant = revealed ? (allocation[inc.type] || 0) : null;
+  const threshold = inc.severity === 3 ? 2 : 1;
+  const handled = revealed && inc.type !== "opportunity" ? relevant >= threshold : null;
+  const opportunityWon = revealed && inc.type === "opportunity" ? (() => {
+    if (inc.id === "o1") return allocation.compliance >= 2 && allocation.stability >= 2;
+    if (inc.id === "o2") return allocation.techdebt >= 2 && allocation.security >= 1;
+    if (inc.id === "o3") return allocation.performance >= 3;
+    if (inc.id === "o4") return allocation.features >= 3 && allocation.stability >= 1;
+    return false;
+  })() : null;
+
+  // Pre-commit: border is purely severity-based, no domain colour leak
+  const preBorderColor = inc.type === "opportunity" ? "#ffb80055"
+    : inc.severity === 3 ? "#ff4d6d55" : "#ff9f4355";
+
+  // Post-commit: colour by outcome
+  const postBg = handled === true ? "rgba(0,255,157,0.06)"
+    : handled === false ? "rgba(255,77,109,0.10)"
+    : opportunityWon ? "rgba(255,184,0,0.08)"
+    : "rgba(255,255,255,0.03)";
+
+  return (
+    <div style={{
+      background: revealed ? postBg : "rgba(255,255,255,0.03)",
+      border: `1px solid ${preBorderColor}`,
+      borderRadius: 12, padding: "14px 16px",
+      position:"relative", overflow:"hidden",
+      transition:"background 0.4s"
+    }}>
+      {/* Severity badge — always visible, but domain is NOT revealed pre-commit */}
+      {inc.type !== "opportunity" && inc.severity === 3 &&
+        <div style={{ position:"absolute", top:0, right:0, background:"#ff4d6d", color:"#fff",
+          fontSize:9, fontFamily:"'Space Mono',monospace", padding:"2px 8px", borderRadius:"0 12px 0 8px" }}>CRITICAL</div>}
+      {inc.type !== "opportunity" && inc.severity === 2 &&
+        <div style={{ position:"absolute", top:0, right:0, background:"#ff9f43", color:"#000",
+          fontSize:9, fontFamily:"'Space Mono',monospace", padding:"2px 8px", borderRadius:"0 12px 0 8px" }}>ELEVATED</div>}
+      {inc.type === "opportunity" &&
+        <div style={{ position:"absolute", top:0, right:0, background:"#ffb800", color:"#000",
+          fontSize:9, fontFamily:"'Space Mono',monospace", padding:"2px 8px", borderRadius:"0 12px 0 8px" }}>OPPORTUNITY</div>}
+
+      <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+        <span style={{ fontSize:26, lineHeight:1.2 }}>{inc.icon}</span>
+        <div style={{ flex:1 }}>
+          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:13, color:"#fff", fontWeight:700, marginBottom:5 }}>
+            {inc.title}
+          </div>
+          {/* Narrative only — no domain/penalty hints */}
+          <div style={{ fontSize:11, color:"#888", lineHeight:1.6 }}>{inc.desc}</div>
+
+          {/* Reveal domain + outcome ONLY after commit */}
+          {revealed && (
+            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #2a2a2a" }}>
+              {/* Domain reveal */}
+              <div style={{ fontSize:10, color:"#555", marginBottom:4, fontFamily:"'Space Mono',monospace", letterSpacing:1 }}>
+                DOMAIN: <span style={{
+                  color: inc.type === "opportunity" ? "#ffb800" :
+                    inc.type === "security" ? "#ff4d6d" : inc.type === "stability" ? "#4dc3ff" :
+                    inc.type === "performance" ? "#ff9f43" : inc.type === "compliance" ? "#b47dff" : "#ffb800"
+                }}>{inc.type.toUpperCase()}</span>
+              </div>
+              {/* Outcome */}
+              <div style={{ fontSize:11, fontFamily:"'Space Mono',monospace", fontWeight:700,
+                color: inc.type === "opportunity"
+                  ? (opportunityWon ? "#ffb800" : "#555")
+                  : (handled ? "#00ff9d" : "#ff4d6d") }}>
+                {inc.type === "opportunity"
+                  ? (opportunityWon ? "✨ OPPORTUNITY SEIZED — BONUS EARNED!" : "○ Conditions not met — opportunity missed")
+                  : (handled
+                      ? `✓ DEFENDED — ${relevant} token${relevant!==1?"s":""} allocated`
+                      : `✗ INCIDENT HIT — insufficient investment`)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Scoreboard({ teams }) {
+  const sorted = [...teams].sort((a,b) => b.totalScore - a.totalScore);
+  return (
+    <div>
+      {sorted.map((team, i) => {
+        const grade = getGrade(team.totalScore, Math.max(team.rounds.length, 1));
+        return (
+          <div key={team.id} style={{
+            background: i === 0 ? "rgba(255,184,0,0.06)" : "rgba(255,255,255,0.03)",
+            border: `1px solid ${i === 0 ? "#ffb80044" : "#ffffff11"}`,
+            borderRadius:12, padding:"14px 18px", marginBottom:10,
+            display:"flex", alignItems:"center", gap:14
+          }}>
+            <div style={{ fontSize:22, width:32, textAlign:"center" }}>
+              {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i+1}`}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:14, color:"#fff", fontWeight:700 }}>{team.name}</div>
+              <div style={{ fontSize:11, color:grade.color, marginTop:2 }}>{grade.grade} — {grade.label}</div>
+              <div style={{ display:"flex", gap:4, marginTop:6, flexWrap:"wrap" }}>
+                {team.badges.map(b => (
+                  <span key={b.id} title={b.label} style={{ fontSize:16 }}>{b.icon}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:28, fontWeight:700, color: grade.color }}>{team.totalScore}</div>
+              <div style={{ fontSize:10, color:"#555" }}>TOTAL PTS</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [screen, setScreen] = useState("setup"); // setup | game | retro | end
+  const [teamCount, setTeamCount] = useState(2);
+  const [teamNames, setTeamNames] = useState(["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta", "Team Echo", "Team Foxtrot"]);
+  const [teams, setTeams] = useState([]);
+  const [activeTeamIdx, setActiveTeamIdx] = useState(0);
+  const [round, setRound] = useState(0); // 0-indexed
+  const [phase, setPhase] = useState(PHASES[0]);
+  const [incidents, setIncidents] = useState([]);
+  const [allocation, setAllocation] = useState(() => Object.fromEntries(CATEGORIES.map(c=>[c.id,0])));
+  const [roundResults, setRoundResults] = useState(null);
+  const [allTeamsDoneRound, setAllTeamsDoneRound] = useState(false);
+  const [roundScores, setRoundScores] = useState([]); // per-round scores for current round
+  const [retroRoundScores, setRetroRoundScores] = useState([]); // scores to show in retro
+  const [expandedPrinciple, setExpandedPrinciple] = useState(null);
+  const [roundBonusMap, setRoundBonusMap] = useState({});
+  const [usedIncidentIds, setUsedIncidentIds] = useState(new Set());
+
+  // Tip cycling from DORA principles for ticker
+  const TICKER_TIPS = Object.values(PHASE_RETROS).flatMap(r => r.principles.map(p => `${p.icon} ${p.title} — ${p.practice}`));
+  const [tip, setTip] = useState(TICKER_TIPS[0]);
+  const tipRef = useRef(0);
+
+  // Cycle tip
+  useEffect(() => {
+    const t = setInterval(() => {
+      tipRef.current = (tipRef.current + 1) % TICKER_TIPS.length;
+      setTip(TICKER_TIPS[tipRef.current]);
+    }, 7000);
+    return () => clearInterval(t);
+  }, []);
+
+  function startGame() {
+    const newTeams = Array.from({length: teamCount}, (_, i) => ({
+      id: i, name: teamNames[i],
+      totalScore: 0, rounds: [],
+      badges: [], debtTotal: 0,
+      bonusTokens: 0,
+    }));
+    setTeams(newTeams);
+    setActiveTeamIdx(0);
+    setRound(0);
+    setPhase(PHASES[0]);
+    setAllocation(Object.fromEntries(CATEGORIES.map(c=>[c.id,0])));
+    setRoundResults(null);
+    setRoundScores([]);
+    setRoundBonusMap({});
+    const freshUsed = new Set();
+    setUsedIncidentIds(freshUsed);
+    const inc = dealIncidents(1, freshUsed);
+    setIncidents(inc);
+    setScreen("game");
+  }
+
+  const totalUsed = Object.values(allocation).reduce((a,b)=>a+b,0);
+  const maxTokens = phase.tokens + (roundBonusMap[activeTeamIdx] || 0);
+
+  function commitAllocation() {
+    const team = teams[activeTeamIdx];
+    const { score, breakdown, debtAccrued } = scoreAllocation(allocation, incidents, round+1);
+    const newBadges = ACHIEVEMENT_BADGES.filter(b => b.cond(allocation) && !team.badges.find(x=>x.id===b.id));
+    const result = { round: round+1, phase: phase.name, score, breakdown, allocation: {...allocation}, debtAccrued };
+
+    const updatedTeam = {
+      ...team,
+      totalScore: team.totalScore + score,
+      rounds: [...team.rounds, result],
+      badges: [...team.badges, ...newBadges],
+      debtTotal: team.debtTotal + debtAccrued,
+      bonusTokens: allocation.techdebt >= 3 ? 1 : 0, // reward for paying debt
+    };
+
+    const newTeams = teams.map((t,i) => i === activeTeamIdx ? updatedTeam : t);
+    setTeams(newTeams);
+    const newRoundScores = [...roundScores, { teamName: team.name, score, breakdown }];
+    setRoundScores(newRoundScores);
+    setRoundResults({ score, breakdown, newBadges, debtAccrued, allScores: newRoundScores, allocation: {...allocation} });
+
+    // check if all teams done this round
+    if (activeTeamIdx === teamCount - 1) {
+      setAllTeamsDoneRound(true);
+    }
+  }
+
+  function nextTeamOrRound() {
+    setRoundResults(null);
+    if (activeTeamIdx < teamCount - 1) {
+      // More teams still to play this round
+      setActiveTeamIdx(activeTeamIdx + 1);
+      setAllocation(Object.fromEntries(CATEGORIES.map(c=>[c.id,0])));
+    } else {
+      // All teams done this round — go to retro, pass final scores
+      setRetroRoundScores([...roundScores]);
+      setScreen("retro");
+    }
+  }
+
+  function proceedFromRetro() {
+    if (round >= 5) {
+      setScreen("end");
+    } else {
+      const newRound = round + 1;
+      setRound(newRound);
+      setPhase(PHASES[newRound]);
+      setActiveTeamIdx(0);
+      setAllocation(Object.fromEntries(CATEGORIES.map(c=>[c.id,0])));
+      setRoundScores([]);
+      setAllTeamsDoneRound(false);
+      setExpandedPrinciple(null);
+      // Mark this round's incidents as used so they can't repeat
+      const newUsed = new Set([...usedIncidentIds, ...incidents.map(i => i.id)]);
+      setUsedIncidentIds(newUsed);
+      setIncidents(dealIncidents(newRound + 1, newUsed));
+      // Snapshot each team's earned bonus into the map for this new round, then clear
+      setRoundBonusMap(() => {
+        const map = {};
+        teams.forEach(t => { map[t.id] = t.bonusTokens || 0; });
+        return map;
+      });
+      setTeams(prev => prev.map(t => ({ ...t, bonusTokens: 0 })));
+      setScreen("game");
+    }
+  }
+
+  // ── RETROSPECTIVE SCREEN ────────────────────────────────────────────────────
+  if (screen === "retro") {
+    const retro = PHASE_RETROS[round + 1]; // round is 0-indexed, retros are 1-indexed
+    const teamColor2 = "#00ff9d";
+    return (
+      <div style={{ minHeight:"100vh", background:"#080c10", color:"#fff",
+        fontFamily:"'Space Mono',monospace" }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+          * { box-sizing:border-box }
+          ::-webkit-scrollbar { width:4px } ::-webkit-scrollbar-track { background:#0d1117 } ::-webkit-scrollbar-thumb { background:#2a2a2a }
+          @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes glow { 0%,100%{text-shadow:0 0 20px #00ff9d33} 50%{text-shadow:0 0 40px #00ff9d88} }
+          .principle-card { cursor:pointer; transition: all 0.2s; }
+          .principle-card:hover { transform: translateY(-2px); }
+        `}</style>
+
+        {/* Scanlines */}
+        <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:100, opacity:0.35,
+          backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px)" }} />
+
+        {/* Header */}
+        <div style={{ background:"#0a0f14", borderBottom:"2px solid #00ff9d22", padding:"16px 24px",
+          display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
+          <div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, letterSpacing:6,
+              color:"#00ff9d44", marginBottom:2 }}>DEPLOY OR DIE — SPRINT {round + 1} COMPLETE</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, letterSpacing:4,
+              color:"#00ff9d", animation:"glow 3s ease-in-out infinite" }}>
+              RETROSPECTIVE: {retro.phase.toUpperCase()}
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            {/* Sprint dots */}
+            {PHASES.map((p,i) => (
+              <div key={p.id} style={{ width:10, height:10, borderRadius:"50%",
+                background: i <= round ? "#00ff9d" : "#1a2a1a",
+                border: i === round ? "2px solid #00ff9d" : "2px solid transparent",
+                boxShadow: i === round ? "0 0 8px #00ff9d" : "none" }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ maxWidth:960, margin:"0 auto", padding:"32px 20px" }}>
+
+          {/* Sprint scores summary */}
+          {retroRoundScores.length > 0 && (
+            <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16,
+              padding:20, marginBottom:28, display:"flex", gap:12, flexWrap:"wrap",
+              animation:"fadeUp 0.4s ease" }}>
+              <div style={{ fontSize:11, color:"#555", letterSpacing:3, width:"100%", marginBottom:6 }}>SPRINT {round+1} SCORES</div>
+              {retroRoundScores.map((rs, i) => (
+                <div key={i} style={{ flex:1, minWidth:120, background:"rgba(255,255,255,0.03)",
+                  border:"1px solid #2a2a2a", borderRadius:10, padding:"10px 14px", textAlign:"center" }}>
+                  <div style={{ fontSize:10, color:["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff4d6d","#ff9f43"][i], marginBottom:4 }}>
+                    {rs.teamName}
+                  </div>
+                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:26,
+                    color: rs.score > 20 ? "#00ff9d" : rs.score > 8 ? "#ffb800" : "#ff4d6d" }}>
+                    +{rs.score}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Phase summary */}
+          <div style={{ marginBottom:28, padding:"20px 24px",
+            background:"linear-gradient(135deg, rgba(0,255,157,0.04), rgba(0,0,0,0))",
+            border:"1px solid #00ff9d22", borderRadius:16, animation:"fadeUp 0.5s ease" }}>
+            <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:10 }}>SPRINT DEBRIEF</div>
+            <div style={{ fontSize:14, color:"#ccc", lineHeight:1.9 }}>{retro.summary}</div>
+          </div>
+
+          {/* Principles */}
+          <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:16 }}>
+            DEVOPS PRINCIPLES &amp; PRACTICES — SPRINT {round + 1}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(420px, 1fr))", gap:14, marginBottom:28 }}>
+            {retro.principles.map((p, i) => {
+              const isOpen = expandedPrinciple === i;
+              return (
+                <div key={i} className="principle-card"
+                  onClick={() => setExpandedPrinciple(isOpen ? null : i)}
+                  style={{ background: isOpen ? "rgba(0,255,157,0.05)" : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${isOpen ? "#00ff9d44" : "#1e2a1e"}`,
+                    borderRadius:14, padding:"18px 20px",
+                    animation:`fadeUp ${0.4 + i*0.08}s ease`,
+                    boxShadow: isOpen ? "0 0 20px rgba(0,255,157,0.08)" : "none" }}>
+
+                  {/* Header row */}
+                  <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", gap:12, flex:1 }}>
+                      <span style={{ fontSize:26, lineHeight:1.2, flexShrink:0 }}>{p.icon}</span>
+                      <div>
+                        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:13, color:"#fff",
+                          fontWeight:700, marginBottom:4, lineHeight:1.4 }}>{p.title}</div>
+                        <div style={{ display:"inline-block", background:"rgba(0,255,157,0.1)",
+                          border:"1px solid #00ff9d33", borderRadius:20, padding:"2px 10px",
+                          fontSize:9, color:"#00ff9d", letterSpacing:1 }}>{p.practice}</div>
+                      </div>
+                    </div>
+                    <div style={{ color: isOpen ? "#00ff9d" : "#444", fontSize:16, flexShrink:0,
+                      transition:"transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</div>
+                  </div>
+
+                  {/* Expandable content */}
+                  {isOpen && (
+                    <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #1e2a1e" }}>
+                      <div style={{ fontSize:12, color:"#aaa", lineHeight:1.8, marginBottom:14 }}>{p.body}</div>
+                      <div style={{ background:"rgba(255,184,0,0.06)", border:"1px solid #ffb80033",
+                        borderRadius:10, padding:"12px 14px" }}>
+                        <div style={{ fontSize:9, color:"#ffb800", letterSpacing:2, marginBottom:6 }}>REAL-WORLD EXAMPLE</div>
+                        <div style={{ fontSize:11, color:"#999", lineHeight:1.7 }}>{p.realWorld}</div>
+                      </div>
+                    </div>
+                  )}
+                  {!isOpen && (
+                    <div style={{ marginTop:10, fontSize:11, color:"#444" }}>
+                      Tap to explore principle &amp; real-world example →
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Reflection question */}
+          <div style={{ background:"rgba(255,184,0,0.05)", border:"1px solid #ffb80033",
+            borderRadius:14, padding:"20px 24px", marginBottom:28,
+            animation:"fadeUp 0.7s ease" }}>
+            <div style={{ fontSize:11, color:"#ffb800", letterSpacing:3, marginBottom:10 }}>
+              🔄 TEAM REFLECTION — DISCUSS BEFORE PROCEEDING
+            </div>
+            <div style={{ fontSize:14, color:"#ddd", lineHeight:1.8, fontStyle:"italic" }}>
+              "{retro.reflection}"
+            </div>
+          </div>
+
+          {/* Next sprint hint */}
+          {retro.nextHint && (
+            <div style={{ background:"rgba(77,195,255,0.05)", border:"1px solid #4dc3ff22",
+              borderRadius:14, padding:"16px 20px", marginBottom:28,
+              animation:"fadeUp 0.8s ease" }}>
+              <div style={{ fontSize:11, color:"#4dc3ff", letterSpacing:3, marginBottom:8 }}>
+                ⚠ LOOKING AHEAD — SPRINT {round + 2}
+              </div>
+              <div style={{ fontSize:12, color:"#888", lineHeight:1.7 }}>{retro.nextHint}</div>
+            </div>
+          )}
+
+          {/* Overall standings */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16,
+            padding:24, marginBottom:28, animation:"fadeUp 0.85s ease" }}>
+            <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:16 }}>OVERALL STANDINGS</div>
+            <Scoreboard teams={teams} />
+          </div>
+
+          {/* CTA */}
+          <button onClick={proceedFromRetro} style={{
+            width:"100%", padding:20, borderRadius:14,
+            background:"linear-gradient(135deg,#00ff9d,#00cc7a)", border:"none",
+            color:"#080c10", fontFamily:"'Bebas Neue',sans-serif",
+            fontSize:22, letterSpacing:5, cursor:"pointer",
+            boxShadow:"0 4px 24px rgba(0,255,157,0.25)",
+            transition:"all 0.2s"
+          }}>
+            {round >= 5 ? "🏁 VIEW FINAL RESULTS" : `⚡ BEGIN SPRINT ${round + 2}: ${PHASES[round + 1]?.name.toUpperCase()}`}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── SETUP SCREEN ────────────────────────────────────────────────────────────
+  if (screen === "setup") return (
+    <div style={{ minHeight:"100vh", background:"#080c10", color:"#fff",
+      fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column", alignItems:"center",
+      justifyContent:"center", padding: "40px 20px" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&display=swap');
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width:4px } ::-webkit-scrollbar-track { background:#111 } ::-webkit-scrollbar-thumb { background:#333 }
+        input { outline:none; }
+        button:active { transform:scale(0.97) }
+        @keyframes flicker { 0%,100%{opacity:1} 92%{opacity:0.97} 94%{opacity:0.85} 96%{opacity:0.97} }
+        @keyframes scan { 0%{top:-10%} 100%{top:110%} }
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,255,157,0.4)} 50%{box-shadow:0 0 0 8px rgba(0,255,157,0)} }
+        @keyframes glow { 0%,100%{text-shadow:0 0 20px #00ff9d44} 50%{text-shadow:0 0 40px #00ff9d, 0 0 80px #00ff9d44} }
+      `}</style>
+
+      {/* Scanline overlay */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:100,
+        backgroundImage:"repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)" }} />
+
+      <div style={{ maxWidth:520, width:"100%" }}>
+        {/* Logo */}
+        <div style={{ textAlign:"center", marginBottom:40 }}>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(52px,10vw,88px)",
+            color:"#00ff9d", letterSpacing:8, animation:"glow 3s ease-in-out infinite",
+            lineHeight:1, marginBottom:4 }}>DEPLOY</div>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(52px,10vw,88px)",
+            color:"#ff4d6d", letterSpacing:8, lineHeight:1 }}>OR DIE</div>
+          <div style={{ color:"#555", fontSize:12, letterSpacing:4, marginTop:8, fontFamily:"'Space Mono',monospace" }}>
+            A DEVOPS LIFECYCLE CARD GAME
+          </div>
+          <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:12, flexWrap:"wrap" }}>
+            {["2-12 PLAYERS","6 ROUNDS","~90 MINS"].map(t=>(
+              <span key={t} style={{ background:"#ffffff0a", border:"1px solid #333", borderRadius:20,
+                padding:"3px 12px", fontSize:10, color:"#888", letterSpacing:2 }}>{t}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Team count */}
+        <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:28, marginBottom:16 }}>
+          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:"#00ff9d", letterSpacing:3,
+            marginBottom:16, textTransform:"uppercase" }}>Number of Teams</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[2,3,4,5,6].map(n => (
+              <button key={n} onClick={() => setTeamCount(n)} style={{
+                flex:1, minWidth:48, padding:"10px 0", borderRadius:8,
+                border: teamCount===n ? "2px solid #00ff9d" : "1px solid #333",
+                background: teamCount===n ? "#00ff9d18" : "#ffffff06",
+                color: teamCount===n ? "#00ff9d" : "#666",
+                fontFamily:"'Space Mono',monospace", fontSize:16, fontWeight:700, cursor:"pointer",
+                transition:"all 0.15s"
+              }}>{n}</button>
+            ))}
+          </div>
+          <div style={{ color:"#444", fontSize:10, marginTop:10, fontFamily:"'Space Mono',monospace" }}>
+            Tip: Each team needs 2-6 real players making decisions together
+          </div>
+        </div>
+
+        {/* Team names */}
+        <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:28, marginBottom:24 }}>
+          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:"#00ff9d", letterSpacing:3,
+            marginBottom:16, textTransform:"uppercase" }}>Team Names</div>
+          {Array.from({length:teamCount},(_,i)=>(
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+              <span style={{ fontSize:16 }}>{["🟢","🔵","🟡","🟣","🔴","🟠"][i]}</span>
+              <input value={teamNames[i]} onChange={e=>{const n=[...teamNames];n[i]=e.target.value;setTeamNames(n)}}
+                style={{ flex:1, background:"#ffffff08", border:"1px solid #2a2a2a", borderRadius:8,
+                  padding:"10px 14px", color:"#fff", fontFamily:"'Space Mono',monospace", fontSize:13 }} />
+            </div>
+          ))}
+        </div>
+
+        <button onClick={startGame} style={{
+          width:"100%", padding:"18px", borderRadius:12,
+          background:"linear-gradient(135deg,#00ff9d,#00cc7a)", border:"none",
+          color:"#080c10", fontFamily:"'Bebas Neue',sans-serif", fontSize:22, letterSpacing:4,
+          cursor:"pointer", animation:"pulse 2s infinite", transition:"all 0.2s"
+        }}>⚡ INITIALISE DEPLOYMENT</button>
+
+        {/* Quick rules */}
+        <div style={{ marginTop:24, background:"#0d1117", border:"1px solid #1a1a1a", borderRadius:16, padding:20 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:"#ffb800", letterSpacing:3 }}>
+              HOW TO PLAY
+            </div>
+            <svg style={{ opacity:0.18 }} width="52" height="18" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+              <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+            </svg>
+          </div>
+          {[
+            "1. Each round = a Sprint. Discuss & allocate tokens as a team.",
+            "2. Incident cards are revealed — did you invest enough?",
+            "3. Score points for features. Lose points for incidents you ignored.",
+            "4. Tech debt compounds! Neglect it and velocity collapses.",
+            "5. Most points after 6 rounds wins. Learn DevOps the hard way.",
+          ].map(r=>(
+            <div key={r} style={{ fontSize:11, color:"#666", marginBottom:6, lineHeight:1.6 }}>{r}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── END SCREEN ───────────────────────────────────────────────────────────────
+  if (screen === "end") {
+    const sorted = [...teams].sort((a,b)=>b.totalScore-a.totalScore);
+    const winner = sorted[0];
+    const winGrade = getGrade(winner.totalScore, 6);
+    return (
+      <div style={{ minHeight:"100vh", background:"#080c10", color:"#fff",
+        fontFamily:"'Space Mono',monospace", padding:"40px 20px", display:"flex",
+        flexDirection:"column", alignItems:"center" }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap');
+          * { box-sizing:border-box }
+          @keyframes winner { 0%{transform:scale(1)} 50%{transform:scale(1.03)} 100%{transform:scale(1)} }
+          @keyframes confetti { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
+        `}</style>
+        <div style={{ maxWidth:600, width:"100%" }}>
+          <div style={{ textAlign:"center", marginBottom:32 }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
+              <svg style={{ opacity:0.15 }} width="72" height="24" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+                <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+              </svg>
+            </div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:56, color:"#ffb800", letterSpacing:4, animation:"winner 2s ease-in-out infinite" }}>
+              {winner.name}
+            </div>
+            <div style={{ fontSize:13, color:winGrade.color, marginTop:4 }}>{winGrade.grade} RATING — {winGrade.label}</div>
+            <div style={{ fontSize:36, fontWeight:700, color:"#fff", marginTop:8 }}>{winner.totalScore} pts</div>
+          </div>
+
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:20 }}>
+            <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:16 }}>FINAL LEADERBOARD</div>
+            <Scoreboard teams={teams} />
+          </div>
+
+          {/* Retrospective */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:20 }}>
+            <div style={{ fontSize:11, color:"#ffb800", letterSpacing:3, marginBottom:16 }}>POST-GAME RETROSPECTIVE 🔄</div>
+            <div style={{ fontSize:12, color:"#888", lineHeight:1.8 }}>
+              {sorted.map((t,i) => {
+                const g = getGrade(t.totalScore, 6);
+                const topCat = CATEGORIES.reduce((best,c) =>
+                  t.rounds.reduce((s,r)=>s+(r.allocation[c.id]||0),0) > t.rounds.reduce((s,r)=>s+(r.allocation[best.id]||0),0) ? c : best
+                );
+                return (
+                  <div key={t.id} style={{ marginBottom:12, padding:"10px 14px",
+                    background:"rgba(255,255,255,0.02)", borderRadius:8,
+                    borderLeft:`3px solid ${g.color}` }}>
+                    <div style={{ color:"#fff", fontWeight:700, marginBottom:4 }}>{i+1}. {t.name}</div>
+                    <div style={{ fontSize:11 }}>
+                      Favoured <span style={{ color: topCat.color }}>{topCat.label}</span> — 
+                      Total debt accrued: <span style={{ color:"#ff4d6d" }}>{t.debtTotal} pts</span> — 
+                      Badges: {t.badges.length > 0 ? t.badges.map(b=>b.icon).join(" ") : "none earned"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* DevOps lessons */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:24 }}>
+            <div style={{ fontSize:11, color:"#4dc3ff", letterSpacing:3, marginBottom:16 }}>DEVOPS PRINCIPLES YOU JUST LIVED 📚</div>
+            {DEVOPS_PRINCIPLES.map((p,i) => (
+              <div key={i} style={{ fontSize:12, color:"#888", padding:"8px 0",
+                borderBottom:"1px solid #1a1a1a", lineHeight:1.6 }}>{p}</div>
+            ))}
+          </div>
+
+          <button onClick={()=>setScreen("setup")} style={{
+            width:"100%", padding:16, borderRadius:12, border:"1px solid #333",
+            background:"transparent", color:"#00ff9d", fontFamily:"'Space Mono',monospace",
+            fontSize:13, cursor:"pointer", letterSpacing:2
+          }}>↩ NEW GAME</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── GAME SCREEN ──────────────────────────────────────────────────────────────
+  const team = teams[activeTeamIdx];
+  const teamColor = ["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff4d6d","#ff9f43"][activeTeamIdx];
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#080c10", color:"#fff",
+      fontFamily:"'Space Mono',monospace" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+        * { box-sizing:border-box }
+        ::-webkit-scrollbar { width:4px } ::-webkit-scrollbar-track { background:#0d1117 } ::-webkit-scrollbar-thumb { background:#2a2a2a }
+        @keyframes slideIn { from{transform:translateY(-10px);opacity:0} to{transform:translateY(0);opacity:1} }
+        @keyframes glow { 0%,100%{text-shadow:0 0 20px #00ff9d44} 50%{text-shadow:0 0 40px #00ff9d} }
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,255,157,0.3)} 50%{box-shadow:0 0 0 6px rgba(0,255,157,0)} }
+      `}</style>
+
+      {/* Scanlines */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:100, opacity:0.4,
+        backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px)" }} />
+
+      {/* Header */}
+      <div style={{ background:"#0a0f14", borderBottom:"1px solid #1a2a1a", padding:"12px 20px",
+        display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+        <div>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:24, letterSpacing:6,
+            color:"#00ff9d", animation:"glow 3s ease-in-out infinite" }}>DEPLOY OR DIE</div>
+          <div style={{ fontSize:10, color:"#444", letterSpacing:2 }}>DEVOPS LIFECYCLE SIMULATION</div>
+          <svg style={{ opacity:0.13, marginTop:5 }} width="48" height="16" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+            <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+          </svg>
+        </div>
+        <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+          {/* Phase indicator */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
+            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>SPRINT</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:"#fff", letterSpacing:2 }}>
+              {round+1} / 6
+            </div>
+          </div>
+          {/* Phase name */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
+            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>PHASE</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:"#ffb800", letterSpacing:1 }}>
+              {phase.name}
+            </div>
+          </div>
+          {/* Active team */}
+          <div style={{ background:"#0d1117", border:`1px solid ${teamColor}44`, borderRadius:8, padding:"6px 14px" }}>
+            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>TEAM</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:teamColor, letterSpacing:1 }}>
+              {team?.name}
+            </div>
+          </div>
+          {/* Current round indicator */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
+            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>INCIDENTS</div>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:"#ff4d6d", letterSpacing:1 }}>
+              {incidents.length} ACTIVE
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase progress bar */}
+      <div style={{ background:"#0d1117", height:4, display:"flex" }}>
+        {PHASES.map((p,i) => (
+          <div key={p.id} style={{ flex:1, background: i <= round ? "#00ff9d" : "#1a2a1a",
+            transition:"background 0.5s", borderRight:"1px solid #080c10" }} />
+        ))}
+      </div>
+
+      {/* DevOps tip ticker */}
+      <div style={{ background:"#0a0d0a", borderBottom:"1px solid #1a1a1a", padding:"7px 20px",
+        display:"flex", alignItems:"center", gap:10, overflow:"hidden" }}>
+        <span style={{ fontSize:10, color:"#00ff9d", letterSpacing:2, whiteSpace:"nowrap" }}>DEVOPS TIP</span>
+        <div style={{ fontSize:11, color:"#555", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tip}</div>
+      </div>
+
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"20px 16px", display:"grid",
+        gridTemplateColumns: window.innerWidth > 800 ? "1fr 1fr" : "1fr", gap:20 }}>
+
+        {/* LEFT: Allocation panel */}
+        <div>
+          <div style={{ background:"#0d1117", border:`1px solid ${teamColor}22`, borderRadius:16, padding:24 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:11, color:teamColor, letterSpacing:3, marginBottom:2 }}>CAPACITY ALLOCATION</div>
+                <div style={{ fontSize:12, color:"#555" }}>{phase.subtitle}</div>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color: totalUsed === maxTokens ? "#00ff9d" : "#ffb800",
+                  lineHeight:1 }}>{totalUsed} / {maxTokens}</div>
+                <div style={{ fontSize:10, color:"#555" }}>TOKENS USED</div>
+                {(roundBonusMap[activeTeamIdx] || 0) > 0 && (
+                  <div style={{ fontSize:10, color:"#00ff9d" }}>+1 bonus (debt repayment!)</div>
+                )}
+              </div>
+            </div>
+
+            {/* Token bar */}
+            <div style={{ display:"flex", gap:3, marginBottom:20 }}>
+              {Array.from({length:maxTokens}).map((_,i)=>(
+                <div key={i} style={{ flex:1, height:8, borderRadius:2,
+                  background: i < totalUsed ? "#00ff9d" : "#1a2a1a",
+                  transition:"background 0.2s" }} />
+              ))}
+            </div>
+
+            {CATEGORIES.map(cat => (
+              <TokenSlider key={cat.id} cat={cat} value={allocation[cat.id]}
+                onChange={v=>setAllocation({...allocation,[cat.id]:v})}
+                maxTokens={maxTokens} totalUsed={totalUsed} />
+            ))}
+
+            {!roundResults ? (
+              <button onClick={commitAllocation} disabled={totalUsed === 0}
+                style={{
+                  width:"100%", marginTop:16, padding:16, borderRadius:12,
+                  background: totalUsed > 0 ? `linear-gradient(135deg,${teamColor},${teamColor}88)` : "#1a1a1a",
+                  border:"none", color: totalUsed > 0 ? "#080c10" : "#333",
+                  fontFamily:"'Bebas Neue',sans-serif", fontSize:20, letterSpacing:4,
+                  cursor: totalUsed > 0 ? "pointer" : "not-allowed",
+                  animation: totalUsed === maxTokens ? "pulse 1.5s infinite" : "none",
+                  transition:"all 0.2s"
+                }}>
+                {totalUsed === 0
+                  ? "ALLOCATE TOKENS FIRST"
+                  : totalUsed < maxTokens
+                    ? `⚡ INITIATE SPRINT — ${maxTokens - totalUsed} TOKEN${maxTokens - totalUsed !== 1 ? "S" : ""} REMAINING`
+                    : "⚡ INITIATE SPRINT"}
+              </button>
+            ) : (
+              <div style={{ marginTop:16, background:"rgba(0,255,157,0.05)", border:"1px solid #00ff9d33",
+                borderRadius:12, padding:20, animation:"slideIn 0.4s ease" }}>
+                <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:12 }}>SPRINT RESULTS</div>
+                {roundResults.breakdown.map((b,i) => (
+                  <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6,
+                    fontSize:12, color: b.value >= 0 ? b.color : "#ff4d6d" }}>
+                    <span>{b.label}</span>
+                    <span style={{ fontWeight:700 }}>{b.value > 0 ? "+" : ""}{b.value}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop:"1px solid #2a2a2a", marginTop:12, paddingTop:12,
+                  display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ fontSize:13, color:"#fff" }}>Sprint Score</span>
+                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28,
+                    color: roundResults.score > 20 ? "#00ff9d" : roundResults.score > 10 ? "#ffb800" : "#ff4d6d" }}>
+                    +{roundResults.score}
+                  </span>
+                </div>
+                {roundResults.newBadges.length > 0 && (
+                  <div style={{ marginTop:8, display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {roundResults.newBadges.map(b=>(
+                      <span key={b.id} style={{ background:"#ffb80022", border:"1px solid #ffb80044",
+                        borderRadius:20, padding:"3px 10px", fontSize:11, color:"#ffb800" }}>
+                        {b.icon} {b.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {roundResults.debtAccrued > 0 && (
+                  <div style={{ marginTop:8, fontSize:11, color:"#ff4d6d" }}>
+                    ⚠ +{roundResults.debtAccrued} technical debt accrued
+                  </div>
+                )}
+                <button onClick={nextTeamOrRound} style={{
+                  width:"100%", marginTop:16, padding:14, borderRadius:10,
+                  background: activeTeamIdx < teamCount-1
+                    ? "linear-gradient(135deg,#00ff9d,#00cc7a)"
+                    : "linear-gradient(135deg,#ffb800,#e09400)",
+                  border:"none",
+                  color:"#080c10", fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:3,
+                  cursor:"pointer"
+                }}>
+                  {activeTeamIdx < teamCount-1 ? `→ ${teams[activeTeamIdx+1]?.name}'S TURN` :
+                    round >= 5 ? "📋 SPRINT REVIEW →" : "📋 SPRINT REVIEW →"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT: Incidents + team scores */}
+        <div>
+          {/* Incident cards */}
+          <div style={{ background:"#0d1117", border:"1px solid #2a1a1a", borderRadius:16, padding:24, marginBottom:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div style={{ fontSize:11, color:"#ff4d6d", letterSpacing:3 }}>INCIDENT DECK — SPRINT {round+1}</div>
+              <span style={{ fontSize:10, color:"#444" }}>{incidents.length} cards active</span>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {incidents.map(inc => (
+                <IncidentCard key={inc.id} inc={inc} allocation={roundResults ? roundResults.allocation : null} />
+              ))}
+            </div>
+            {!roundResults && (
+              <div style={{ marginTop:14, padding:"10px 14px", background:"rgba(255,184,0,0.05)",
+                border:"1px solid #ffb80022", borderRadius:8, fontSize:11, color:"#666", lineHeight:1.7 }}>
+                💡 <strong style={{ color:"#ffb800" }}>Discuss as a team:</strong> Which of these situations could destroy you this sprint?
+                You won't know the domain until after you initiate. Read the signals — then place your bets.
+              </div>
+            )}
+          </div>
+
+          {/* Round scores so far */}
+          {roundScores.length > 0 && (
+            <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:16 }}>
+              <div style={{ fontSize:11, color:"#4dc3ff", letterSpacing:3, marginBottom:14 }}>THIS SPRINT — RESULTS SO FAR</div>
+              {roundScores.map((rs,i)=>(
+                <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                  padding:"8px 0", borderBottom:"1px solid #1a1a1a" }}>
+                  <span style={{ fontSize:12, color:["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff4d6d","#ff9f43"][i] }}>
+                    {["🟢","🔵","🟡","🟣","🔴","🟠"][i]} {rs.teamName}
+                  </span>
+                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22,
+                    color: rs.score > 20 ? "#00ff9d" : rs.score > 10 ? "#ffb800" : "#ff4d6d" }}>
+                    +{rs.score}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Overall scoreboard mini */}
+          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24 }}>
+            <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:14 }}>OVERALL STANDINGS</div>
+            <Scoreboard teams={teams} />
+          </div>
+        </div>
+      </div>
+
+      {/* Sprint phase overview footer */}
+      <div style={{ background:"#0a0f14", borderTop:"1px solid #1a1a1a", padding:"16px 20px" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", gap:8, flexWrap:"wrap" }}>
+          {PHASES.map((p,i)=>(
+            <div key={p.id} style={{ flex:1, minWidth:90, padding:"8px 10px", borderRadius:8,
+              background: i === round ? `${teamColor}18` : "transparent",
+              border: i === round ? `1px solid ${teamColor}44` : "1px solid #1a1a1a",
+              opacity: i < round ? 0.4 : 1 }}>
+              <div style={{ fontSize:9, color: i===round ? teamColor : "#444", letterSpacing:1 }}>S{p.id}</div>
+              <div style={{ fontSize:10, color: i===round ? "#fff" : "#555", fontWeight:700, marginTop:2 }}>{p.name}</div>
+              <div style={{ fontSize:9, color:"#444", marginTop:2 }}>{p.tokens}T</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
