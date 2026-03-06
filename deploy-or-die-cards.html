@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deploy or Die — Incident Cards</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d0d0d;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 40px;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+.nav-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 4px;
+  color: #00ff9d;
+  text-align: center;
+  flex: 1;
+}
+.nav-title span { color: #ff4d6d; }
+.nav-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  color: #fff;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.13); }
+.nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 14px;
+  max-width: 600px;
+  width: 100%;
+}
+.filter-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.filter-btn.active { color: #fff; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.35); font-weight: 700; }
+
+.counter {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #444;
+  text-align: center;
+  margin-bottom: 14px;
+  letter-spacing: 2px;
+}
+
+/* A5 = 148mm x 210mm. At 96dpi: 559 x 794px */
+.card-stage {
+  width: 559px;
+  height: 794px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.card {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.8);
+  position: relative;
+}
+
+.card.security    { background: linear-gradient(155deg,#1c0609 0%,#110305 55%,#0a0203 100%); border: 2px solid #ff4d6d44; }
+.card.stability   { background: linear-gradient(155deg,#031220 0%,#020c17 55%,#010810 100%); border: 2px solid #4dc3ff44; }
+.card.performance { background: linear-gradient(155deg,#170d00 0%,#100900 55%,#0c0700 100%); border: 2px solid #ff9f4344; }
+.card.compliance  { background: linear-gradient(155deg,#0f0a1e 0%,#09071a 55%,#060414 100%); border: 2px solid #b47dff44; }
+.card.techdebt    { background: linear-gradient(155deg,#181200 0%,#120d00 55%,#0d0900 100%); border: 2px solid #ffb80044; }
+.card.opportunity { background: linear-gradient(155deg,#001c0e 0%,#001508 55%,#000f05 100%); border: 2px solid #00ff9d44; }
+
+.card-stripe { height: 5px; width: 100%; flex-shrink: 0; }
+.card.security    .card-stripe { background: linear-gradient(90deg,#ff4d6d,#ff1a4a); }
+.card.stability   .card-stripe { background: linear-gradient(90deg,#4dc3ff,#1aabff); }
+.card.performance .card-stripe { background: linear-gradient(90deg,#ff9f43,#ff8010); }
+.card.compliance  .card-stripe { background: linear-gradient(90deg,#b47dff,#9040ff); }
+.card.techdebt    .card-stripe { background: linear-gradient(90deg,#ffb800,#e09000); }
+.card.opportunity .card-stripe { background: linear-gradient(90deg,#00ff9d,#00cc7a); }
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px 8px;
+  flex-shrink: 0;
+}
+.domain-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+.card.security    .domain-badge { background:rgba(255,77,109,0.15); color:#ff8fa3; border:1px solid rgba(255,77,109,0.3); }
+.card.stability   .domain-badge { background:rgba(77,195,255,0.12); color:#7dd5f5; border:1px solid rgba(77,195,255,0.3); }
+.card.performance .domain-badge { background:rgba(255,159,67,0.12); color:#ffc07a; border:1px solid rgba(255,159,67,0.3); }
+.card.compliance  .domain-badge { background:rgba(180,125,255,0.12);color:#cba3ff; border:1px solid rgba(180,125,255,0.3); }
+.card.techdebt    .domain-badge { background:rgba(255,184,0,0.12);  color:#ffd45e; border:1px solid rgba(255,184,0,0.3); }
+.card.opportunity .domain-badge { background:rgba(0,255,157,0.10);  color:#5fffca; border:1px solid rgba(0,255,157,0.3); }
+
+.severity-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 4px 12px; border-radius: 12px;
+}
+.sev-critical    { background:rgba(255,77,109,0.18); color:#ff4d6d; border:1px solid rgba(255,77,109,0.4); }
+.sev-elevated    { background:rgba(255,159,67,0.14); color:#ff9f43; border:1px solid rgba(255,159,67,0.35); }
+.sev-opportunity { background:rgba(0,255,157,0.10);  color:#00ff9d; border:1px solid rgba(0,255,157,0.3); }
+
+.card-icon-area { text-align:center; padding:8px 0 2px; flex-shrink:0; }
+.card-icon { font-size:60px; line-height:1; display:block; }
+
+.card-title {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:34px; letter-spacing:3px;
+  text-align:center;
+  padding:4px 28px 0;
+  line-height:1.1; flex-shrink:0;
+}
+.card.security    .card-title { color:#ff8fa3; }
+.card.stability   .card-title { color:#7dd5f5; }
+.card.performance .card-title { color:#ffc07a; }
+.card.compliance  .card-title { color:#cba3ff; }
+.card.techdebt    .card-title { color:#ffd45e; }
+.card.opportunity .card-title { color:#5fffca; }
+
+.card-divider { height:1px; margin:10px 24px; opacity:0.12; flex-shrink:0; }
+.card.security    .card-divider { background:#ff4d6d; }
+.card.stability   .card-divider { background:#4dc3ff; }
+.card.performance .card-divider { background:#ff9f43; }
+.card.compliance  .card-divider { background:#b47dff; }
+.card.techdebt    .card-divider { background:#ffb800; }
+.card.opportunity .card-divider { background:#00ff9d; }
+
+.card-body {
+  padding:0 26px;
+  flex:1; display:flex; flex-direction:column; gap:10px;
+  overflow:hidden; min-height:0;
+}
+.card-situation {
+  font-size:13.5px; line-height:1.65;
+  color:rgba(255,255,255,0.75);
+}
+.card-detail {
+  font-size:12px; line-height:1.65;
+  color:rgba(255,255,255,0.48);
+  padding-top:9px;
+  border-top:1px solid rgba(255,255,255,0.07);
+}
+.card-flavour {
+  font-size:11.5px; line-height:1.6;
+  color:rgba(255,255,255,0.28);
+  font-style:italic;
+  padding-top:8px;
+  border-top:1px solid rgba(255,255,255,0.05);
+  margin-top:auto;
+}
+
+.card-question-area {
+  padding:12px 26px 14px;
+  flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,0.05);
+}
+.card-question-label {
+  font-family:'Space Mono',monospace;
+  font-size:8px; letter-spacing:2px;
+  color:rgba(255,255,255,0.2); margin-bottom:5px;
+}
+.card-question {
+  font-size:12.5px; line-height:1.55;
+  color:rgba(255,255,255,0.48);
+  font-style:italic;
+}
+
+.card-id {
+  position:absolute; bottom:10px; right:16px;
+  font-family:'Space Mono',monospace;
+  font-size:8px; color:rgba(255,255,255,0.1); letter-spacing:1px;
+}
+
+@media print {
+  body { background:white; padding:0;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+  .nav-bar,.filter-bar,.counter { display:none !important; }
+  .card-stage { width:148mm; height:210mm; page-break-after:always; }
+  .card { border-radius:10px; }
+}
+@page { size:A5 portrait; margin:0; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">← PREV</button>
+  <div class="nav-title">DEPLOY <span>OR DIE</span> — CARDS</div>
+  <button class="nav-btn" id="nextBtn" onclick="navigate(1)">NEXT →</button>
+</div>
+
+<div class="filter-bar" id="filterBar"></div>
+<div class="counter" id="counter"></div>
+<div class="card-stage" id="cardStage"></div>
+
+<script>
+const CARDS = [
+  // ── SECURITY ──
+  { id:"S1", type:"security", severity:"critical", icon:"💀",
+    title:"Zero-Day in the Wild", phases:[1,2,3,4,5,6],
+    situation:"Researchers have published a working exploit for a widely-deployed component overnight. Your engineers are scrambling to assess exposure across every system — and the window before attackers weaponise it is measured in hours, not days.",
+    detail:"A zero-day is a vulnerability with no existing patch — meaning there is no straightforward fix to deploy. The DevOps response requires rapid asset inventory (do you know everywhere this component runs?), temporary mitigations such as WAF rules or network isolation, and a coordinated patch deployment the moment one is available. Teams that practise vulnerability response drills, maintain an up-to-date software bill of materials (SBOM), and run automated dependency scanning will contain the blast radius significantly faster. Log4Shell (2021) was discovered in a library used by millions of systems; organisations with strong observability and IaC recovered in hours — others took weeks.",
+    flavour:"Every minute unpatched is a minute the door is open. Do you even know your full attack surface?",
+    question:"How quickly can you assess and patch a critical vulnerability you didn't know existed yesterday?" },
+
+  { id:"S2", type:"security", severity:"critical", icon:"🔓",
+    title:"Credential Stuffing Wave", phases:[1,2,3,4,5,6],
+    situation:"Tens of thousands of login attempts are flooding your platform using leaked passwords from a third-party breach. Real accounts are being compromised in real time. Support tickets are piling up faster than the team can respond.",
+    detail:"Credential stuffing exploits the fact that most people reuse passwords. Attackers buy leaked credential databases and automate login attempts at scale. Defences include: rate limiting and CAPTCHA on auth endpoints, anomaly detection on login patterns, enforced MFA, breach password detection (checking new passwords against known-leaked datasets via services like HaveIBeenPwned), and fast account-lock flows. None of these are difficult to implement — but all of them must be in place before the attack, not during it. A team with a mature DevSecOps practice will have these controls automated, tested, and alerting continuously.",
+    flavour:"Users reuse passwords. You can't stop that. But you can stop the damage — if you built the right defences early.",
+    question:"Do you have rate limiting, anomaly detection, and MFA enforcement in place — or did security wait for later?" },
+
+  { id:"S3", type:"security", severity:"elevated", icon:"📦",
+    title:"Rogue Dependency", phases:[1,2,3,4,5,6],
+    situation:"A popular open source package your product depends on was silently compromised in its latest release. The malicious version has been downloaded millions of times across the industry. Half your stack may be affected.",
+    detail:"Software supply chain attacks have become one of the fastest-growing threat vectors — the SolarWinds and XZ Utils incidents demonstrated how deeply a single compromised package can penetrate enterprise infrastructure. The DevOps response requires a Software Bill of Materials (SBOM) — a complete inventory of every dependency and its version — so you can query instantly whether you are affected. Automated dependency scanning tools (Dependabot, Snyk, OWASP Dependency-Check) should run in every CI pipeline. Pinning dependency versions and verifying checksums prevents silent upgrades to malicious releases. This is a textbook 'shift-left security' practice.",
+    flavour:"Supply chain attacks are now a top threat vector. You can't audit what you don't track.",
+    question:"Do you have a software bill of materials (SBOM)? Are dependencies locked and scanned automatically in CI?" },
+
+  { id:"S4", type:"security", severity:"critical", icon:"🕵",
+    title:"Insider Threat Detected", phases:[3,4,5,6],
+    situation:"Anomalous access patterns have been flagged. It appears a current or recently departed employee has been accessing and exfiltrating sensitive customer records over the past two weeks. Legal has been notified.",
+    detail:"Insider threats — whether malicious or negligent — are disproportionately damaging because insiders already have legitimate access. The DevOps controls that limit exposure are: least-privilege access (every person and service has only the access they need and nothing more), regular access reviews (quarterly audits of who has access to what), immutable and centralised audit logs (so any access is traceable and tamper-evident), and strict offboarding checklists (credentials, tokens, and SSH keys revoked on the employee's last day, not their last week). Zero Trust architecture assumes breach and verifies every access request regardless of network location.",
+    flavour:"Not all threats come from outside. Least-privilege access, audit logs, and offboarding procedures exist for exactly this moment.",
+    question:"Are access rights reviewed regularly? Are departing employee credentials revoked immediately on their last day?" },
+
+  { id:"S5", type:"security", severity:"elevated", icon:"🗝",
+    title:"API Key Leaked to GitHub", phases:[1,2,3,4,5,6],
+    situation:"A developer accidentally committed live production credentials to a public repository. Automated bots scan GitHub continuously for exactly this. The window between commit and exploit is measured in seconds — not hours.",
+    detail:"Secrets committed to version control are one of the most preventable and most common security incidents. The correct response is immediate credential rotation — not deletion of the commit, which is insufficient since Git history and forks persist. Prevention requires: pre-commit hooks that scan for secrets before they are committed (tools like git-secrets, truffleHog, or GitGuardian), CI pipeline secret scanning on every push, secrets management platforms (HashiCorp Vault, AWS Secrets Manager) so credentials are never stored in code or environment files, and developer training. The key DevOps principle is 'shift left' — catch this class of error before it ever reaches the repository.",
+    flavour:"Secrets don't belong in code. They never did. Secret scanning in CI is a five-minute setup with zero downside.",
+    question:"How quickly can you rotate all affected credentials? Do you know every place each key is used?" },
+
+  // ── STABILITY ──
+  { id:"ST1", type:"stability", severity:"critical", icon:"🔥",
+    title:"Cascading Service Failure", phases:[1,2,3,4,5,6],
+    situation:"One service went unhealthy and took three dependent services down with it. The cascade is spreading. The on-call phone hasn't stopped ringing. Users are posting screenshots of error pages and asking for updates on social media.",
+    detail:"Cascading failures are the hallmark of tightly coupled systems with insufficient resilience engineering. The SRE toolkit for preventing them includes: circuit breakers (automatically stopping calls to an unhealthy downstream service), bulkheads (isolating failure so one component cannot exhaust shared resources), retry logic with exponential backoff (preventing retry storms), health check endpoints and readiness probes, and graceful degradation (returning partial data rather than total failure). The Amazon AWS architecture uses cell-based design to limit blast radius — a failure in one cell cannot propagate to others. Runbooks and on-call playbooks must be maintained and rehearsed so that incident response is procedural, not improvised.",
+    flavour:"Tight coupling is a hidden liability. One failure becomes many when there is no isolation between services.",
+    question:"Do you have circuit breakers, health checks, and runbooks ready — or are you improvising under pressure right now?" },
+
+  { id:"ST2", type:"stability", severity:"critical", icon:"🗄",
+    title:"Silent Data Corruption", phases:[2,3,4,5,6],
+    situation:"Write operations have been silently corrupting records for 48 hours. Nobody noticed until a paying customer complained that their historical data had vanished. Forensics are underway — but the full scope is still unknown.",
+    detail:"Silent data corruption is particularly dangerous because it compounds over time before detection, potentially invalidating large volumes of data and triggering regulatory obligations. Prevention requires multiple layers: write-path validation (schema enforcement, constraint checks, checksums on critical fields), read-path anomaly detection (alerting on unexpected null rates, outlier values, or referential integrity failures), regular data quality audits, and event sourcing or write-ahead logging so every mutation is traceable. Comprehensive observability extends beyond service metrics to data health metrics. The DORA research shows that elite teams have significantly shorter mean time to detect (MTTD) — silent failures are a MTTD problem at their core.",
+    flavour:"Silent failures are the most dangerous kind. They erode trust long before anyone sounds an alarm.",
+    question:"Do you have checksums, data validation, and anomaly detection on writes? How would you even know this was happening?" },
+
+  { id:"ST3", type:"stability", severity:"elevated", icon:"🧠",
+    title:"Memory Leak Snowball", phases:[1,2,3,4,5,6],
+    situation:"A gradual memory leak has been accumulating unnoticed for days. Servers are now restarting every few hours. The team is papering over it with forced restarts — but users are noticing the interruptions and trust is slowly eroding.",
+    detail:"Memory leaks exemplify why reactive monitoring is insufficient — by the time the alert fires, the degradation has been accumulating for hours or days. The observability solution is continuous profiling: tracking heap usage, garbage collection frequency, and memory growth trends over time, with alerts on gradual drift rather than only threshold breaches. Tools like Pyroscope, pprof, or commercial APM platforms enable continuous production profiling with minimal overhead. From a DevOps process perspective, this failure mode also highlights the importance of load testing in CI: a memory leak that takes days to manifest under real traffic will often appear in hours under sustained synthetic load.",
+    flavour:"Slow degradation is insidious. It only becomes urgent when it is already a crisis. Monitoring catches it early.",
+    question:"Would your alerting have caught this before users noticed? Or did a customer report it to you first?" },
+
+  { id:"ST4", type:"stability", severity:"elevated", icon:"⏪",
+    title:"Deployment Rollback Crisis", phases:[1,2,3,4,5,6],
+    situation:"The latest release broke checkout for 20% of users. Rolling back sounds simple — except the team has never actually practised it, a database migration already ran, and nobody is confident about the current state of production data.",
+    detail:"The ability to roll back quickly and safely is a core DevOps capability — the DORA metric 'Mean Time to Restore' (MTTR) is one of the four key engineering performance indicators, and rollback speed is its primary driver. Best practices include: blue-green deployments (keeping the previous version running and switching traffic back instantly), feature flags (toggling off a broken feature without a full deployment), backwards-compatible database migrations (never making a schema change that breaks the previous version of the code), and regular rollback rehearsals. Teams that deploy frequently also roll back frequently — the muscle memory is there when it matters. Canary deployments limit the blast radius of a bad release to a small percentage of users before full rollout.",
+    flavour:"Rollback plans that exist only on paper fail in production. Practise reversions before you need them.",
+    question:"When did you last rehearse a rollback end-to-end? Can you safely revert in under 15 minutes with confidence?" },
+
+  { id:"ST5", type:"stability", severity:"elevated", icon:"🔗",
+    title:"Third-Party Outage Dependency", phases:[2,3,4,5,6],
+    situation:"Your payment provider is down with no recovery ETA. Your product has no fallback pathway — every transaction attempt is failing. Revenue has stopped. Customers are asking why they cannot complete purchases.",
+    detail:"Third-party dependencies are reliability liabilities that do not appear in your own SLOs but directly affect your users. The resilience pattern is to design for degradation: queue payment requests and retry when the provider recovers, offer alternative providers as fallback, surface clear and honest status messages to users rather than generic error pages, and set up dependency health monitoring so your alerting fires the moment a provider degrades — ideally before your users notice. Service dependency mapping (knowing every external call your system makes and what the failure mode is for each) is a foundational SRE practice. The Netflix Simian Army philosophy applies here: if a dependency can fail, assume it will, and build accordingly.",
+    flavour:"You inherit your dependencies' reliability. Their outage is your problem unless you designed for it.",
+    question:"Do you have fallback providers, graceful degradation, and clear customer messaging ready for third-party failures?" },
+
+  // ── PERFORMANCE ──
+  { id:"P1", type:"performance", severity:"elevated", icon:"📈",
+    title:"Viral Traffic Surge", phases:[1,2,3,4,5,6],
+    situation:"A major influencer just posted about your product. Traffic is 50× normal and climbing fast. This is the breakthrough moment you have worked toward — but your infrastructure was never load-tested beyond 5× peak capacity.",
+    detail:"Horizontal scalability under sudden load requires deliberate architectural choices made long before the traffic spike arrives. Auto-scaling policies must be pre-configured and tested — scaling typically takes 2–5 minutes, which is too late if your servers are already saturated. Caching layers (CDN, application-level cache, database query cache) absorb read traffic without touching compute. Load testing tools such as k6, Locust, or Gatling should be run regularly at realistic peak projections. The key DevOps principle is that infrastructure should be code — defined declaratively, version-controlled, and deployable in minutes. Chaos engineering (deliberately testing how your system behaves at capacity limits) converts theoretical resilience into demonstrated resilience.",
+    flavour:"Viral moments are binary: you absorb the wave and gain thousands of users, or you crash and they never return.",
+    question:"Can you scale horizontally right now? Is auto-scaling configured, tested, and ready to activate without manual intervention?" },
+
+  { id:"P2", type:"performance", severity:"elevated", icon:"🐌",
+    title:"Slow API Under Load", phases:[1,2,3,4,5,6],
+    situation:"Response times have ballooned to 8 seconds during peak hours. Users are rage-tweeting, the app store rating dropped half a star overnight, and your largest customer just emailed asking what is going on.",
+    detail:"Performance is a user-facing feature, not an infrastructure concern. Google research shows 53% of mobile users abandon a site that takes more than 3 seconds to load; Amazon found each 100ms of latency cost 1% of sales. The engineering response requires first understanding the bottleneck — distributed tracing (OpenTelemetry, Jaeger, Zipkin) shows exactly where latency accumulates across service boundaries. Common causes include N+1 database queries, missing indexes, synchronous calls that could be async, and missing caching. Performance budgets — defined SLOs for p95 and p99 response times — should be tracked in dashboards and trigger alerts when breached. Load testing in CI against a production-like environment catches regressions before they reach users.",
+    flavour:"Slow is the new down. Users tolerate outages more than chronic slowness. Performance is a feature, not an afterthought.",
+    question:"Do you have performance budgets and p95/p99 benchmarks defined? Do you know where the actual bottleneck is?" },
+
+  { id:"P3", type:"performance", severity:"critical", icon:"💣",
+    title:"Database Query Explosion", phases:[3,4,5,6],
+    situation:"An unindexed query slipped through code review and reached production. Under normal load it was fine. Under scale it performs a full table scan on every request. The database CPU is pinned at 100% and everything is timing out.",
+    detail:"Database performance is one of the most common scaling failure modes because queries that appear fast in development — against small datasets — can be catastrophically slow in production at scale. The N+1 query problem (executing a query per item in a loop) and missing indexes are the two most frequent culprits. Prevention requires: query analysis in CI using EXPLAIN plans against production-representative data volumes, database slow query logging with automatic alerting on queries exceeding thresholds, read replicas for reporting workloads, and connection pooling to manage database concurrency. The deeper DevOps principle is that staging environments must mirror production data volumes — a staging database with 10,000 rows cannot reveal performance problems that only emerge at 100 million rows.",
+    flavour:"Query performance does not degrade linearly. It collapses suddenly at scale — and it always hits on a Friday.",
+    question:"Are slow queries caught in CI? Do you run query analysis against production-scale data volumes before deploying?" },
+
+  { id:"P4", type:"performance", severity:"elevated", icon:"🌐",
+    title:"CDN Misconfiguration", phases:[2,3,4,5,6],
+    situation:"A configuration change accidentally bypassed the CDN entirely. Every image, stylesheet, and static asset is now hitting your origin servers directly. Load has spiked 40× and global page load times have tripled.",
+    detail:"CDN misconfigurations are a classic example of infrastructure change risk. A CDN can absorb 80–95% of total traffic for content-heavy applications — losing it instantaneously overwhelms origin infrastructure. The DevOps safeguard is Infrastructure as Code: CDN configuration defined in Terraform, Pulumi, or CloudFormation, stored in version control, reviewed via pull request, and deployed through the same CI/CD pipeline as application code. This makes every change auditable and reversible. Cache-Control headers should be explicitly set — implicit or inherited caching behaviour is fragile. Canary deployments apply to infrastructure changes too: roll out config changes to a percentage of edge nodes before applying globally.",
+    flavour:"Infrastructure config is code. It should be reviewed, tested, and reversible as easily as application code.",
+    question:"Do you have infrastructure-as-code with change review? Can you safely revert a config change in under five minutes?" },
+
+  // ── COMPLIANCE ──
+  { id:"C1", type:"compliance", severity:"critical", icon:"🏛",
+    title:"Surprise Regulatory Audit", phases:[2,3,4,5,6],
+    situation:"Regulators have arrived unannounced. They are requesting evidence of data handling policies, access controls, audit logs, and breach response procedures — immediately. You have a few hours before they expect documentation on the table.",
+    detail:"Regulatory audits test whether compliance is a living practice or a periodic paper exercise. The evidence regulators seek — access logs, change records, data processing agreements, incident response tests, security scan results — is generated continuously by mature DevOps practices and captured as artefacts. Policy as Code (using tools like Open Policy Agent or AWS Config Rules) automates compliance checks on every deployment, generating audit evidence as a by-product of normal operations. A compliance dashboard showing current control status, last-tested dates, and evidence links turns an audit from a crisis into a scheduled data export. GDPR, ISO 27001, and SOC 2 all reward organisations that can demonstrate continuous control, not point-in-time remediation.",
+    flavour:"Compliance is not something you do before an audit. It is something you demonstrate you have always been doing.",
+    question:"Can you produce a complete audit trail of who accessed what data, when, and why — in the next 30 minutes?" },
+
+  { id:"C2", type:"compliance", severity:"elevated", icon:"📜",
+    title:"Data Subject Access Request", phases:[2,3,4,5,6],
+    situation:"A customer has invoked their GDPR right to erasure. They want all data deleted across every system, with written confirmation, within 72 hours. You have never done this before. It involves six different data stores across three teams.",
+    detail:"GDPR Article 17 (right to erasure) and Article 15 (right of access) impose strict timelines — 30 days for access requests, with fines up to 4% of global annual revenue for non-compliance. The engineering challenge is that personal data is rarely in one place: it exists in primary databases, analytics pipelines, event logs, backups, third-party integrations, and caches. A data map — documenting every system that stores personal data and how it is tagged — is the prerequisite for scalable DSR handling. Automation tools (OneTrust, Transcend, or custom pipelines) can execute deletion workflows across systems in response to a request, generating an audit trail automatically. This is fundamentally a data architecture and observability problem, not just a legal one.",
+    flavour:"GDPR is not an edge case. Every user you have is a potential DSR. Manual processes do not scale past a handful of requests.",
+    question:"Is data erasure automated across all systems, or does it require manual coordination you hope someone remembers how to do?" },
+
+  { id:"C3", type:"compliance", severity:"elevated", icon:"📁",
+    title:"SOC 2 Audit Prep Demand", phases:[3,4,5,6],
+    situation:"Your largest prospective enterprise client has made SOC 2 Type II certification a hard requirement before signing. Their procurement team wants a complete audit report within two weeks. You have never been through this process before.",
+    detail:"SOC 2 Type II assesses the operational effectiveness of security controls over a period (typically 6–12 months) — it cannot be manufactured in two weeks. The five Trust Service Criteria (Security, Availability, Processing Integrity, Confidentiality, and Privacy) map directly onto DevOps practices: access controls, deployment audit logs, change management processes, incident response records, and encryption standards. Organisations that have adopted DevOps practices — IaC, CI/CD with audit trails, automated security scanning, and centralised logging — are often surprised how much SOC 2 evidence they already have. The gap is typically in formal policies, evidence collection tooling, and a dedicated compliance-as-code pipeline. Starting SOC 2 preparation early is the single biggest lever available.",
+    flavour:"SOC 2 takes 6–12 months to prepare properly. Two weeks is survivable only if the controls were already in place.",
+    question:"Are your access logs, change management records, and security controls documented with continuous evidence collection?" },
+
+  { id:"C4", type:"compliance", severity:"critical", icon:"⚖",
+    title:"Accessibility Lawsuit Filed", phases:[3,4,5,6],
+    situation:"A disability advocacy group has filed a formal legal complaint. Your product does not meet WCAG 2.1 AA standards, making it inaccessible to users with visual impairments. Legal costs begin immediately, regardless of the eventual outcome.",
+    detail:"Web Content Accessibility Guidelines (WCAG) 2.1 AA is a legal requirement in the EU (European Accessibility Act, enforced from 2025), UK, US (ADA), and many other jurisdictions. Common failures include missing alt text on images, insufficient colour contrast ratios, keyboard navigation gaps, missing form labels, and inaccessible custom components. The DevOps approach is to integrate automated accessibility testing into the CI pipeline using tools such as axe-core, Lighthouse, or Pa11y — these catch 30–40% of issues automatically. The remaining issues require manual testing with screen readers (NVDA, VoiceOver, JAWS). Accessibility audits should be a regular part of the definition of done, not a post-launch compliance exercise. Retrofit cost is typically 5–10× higher than building in from the start.",
+    flavour:"Accessibility is a legal requirement in most jurisdictions. Retrofitting it is ten times harder than building it in from the start.",
+    question:"When was your last accessibility audit? Do you test with screen readers and keyboard-only navigation in your CI pipeline?" },
+
+  // ── TECH DEBT ──
+  { id:"TD1", type:"techdebt", severity:"elevated", icon:"🐢",
+    title:"Velocity Collapse", phases:[2,3,4,5,6],
+    situation:"The team is barely shipping. Every new feature requires touching three deeply intertwined legacy modules. Engineers spend more time deciphering old code than writing new features. Estimates keep doubling and the backlog is growing faster than delivery.",
+    detail:"Technical debt compounds exactly like financial debt — and the 'interest' is paid as reduced delivery velocity on every future sprint. Martin Fowler's Technical Debt Quadrant distinguishes between deliberate debt (a conscious trade-off) and inadvertent debt (the result of poor practices or lack of knowledge). The DevOps response is to make debt visible: use static analysis tools (SonarQube, CodeClimate) to track code complexity, duplication, and coverage trends over time; add tech debt items to the product backlog with business justification; and allocate a fixed percentage of sprint capacity (typically 20%) to debt reduction. Teams that practise continuous refactoring — treating code quality as a non-negotiable constraint rather than an optional extra — avoid the velocity cliff entirely.",
+    flavour:"Technical debt is a hidden tax on every future sprint. Ignore it long enough and you stop shipping entirely.",
+    question:"Do you track technical debt formally? Is refactoring scheduled deliberately, or does it keep getting pushed to next sprint?" },
+
+  { id:"TD2", type:"techdebt", severity:"elevated", icon:"😩",
+    title:"On-Call Engineer Quits", phases:[3,4,5,6],
+    situation:"Your most experienced engineer — the only person who truly understands how the core system works — has handed in their notice this morning. They are leaving in two weeks. The institutional knowledge in their head is not written down anywhere.",
+    detail:"The 'bus factor' (or 'truck factor') measures how many people need to leave before a system becomes unmaintainable. A bus factor of one is a critical organisational risk. The DevOps practices that reduce it include: runbooks and operational documentation stored in version control alongside the code; architecture decision records (ADRs) capturing why key decisions were made; pair programming and regular knowledge-sharing sessions; meaningful on-call rotation across the whole team (so operational knowledge is distributed); and code review practices that require reviewers to genuinely understand changes, not just approve them. Chronic on-call burnout — where one person handles most incidents because they are the only one who can — is both a cause and a symptom of high bus factor.",
+    flavour:"A bus factor of one is a ticking clock. Technical debt is not just in the code. It is in the people who understand the code.",
+    question:"Is your system documented well enough for someone new to operate it safely? What is your team's knowledge bus factor?" },
+
+  { id:"TD3", type:"techdebt", severity:"elevated", icon:"🧪",
+    title:"Test Suite Collapse", phases:[2,3,4,5,6],
+    situation:"So many tests are marked skipped or permanently broken that the CI pipeline is effectively decorative. A defective change passed all checks and made it to production undetected. Your engineers found out about the bug via a customer support ticket.",
+    detail:"Test coverage is one of the most reliable leading indicators of future defect rates and deployment confidence. The testing pyramid (unit tests at the base, integration tests in the middle, end-to-end tests at the top) provides a cost-effective coverage strategy. Critically, a test suite should have zero tolerance for skipped or broken tests — every skip is a decision to accept unknown risk. Test failure rates and coverage trends should be tracked as engineering metrics alongside deployment frequency and lead time. Continuous Testing in DevOps means tests run automatically on every commit, every pull request, and in pre-production environments that mirror production data volumes and configuration. Mutation testing goes further, verifying that your tests actually catch the bugs they claim to.",
+    flavour:"A green build that lies is worse than no tests at all. It creates false confidence and removes your only safety net.",
+    question:"What percentage of your test suite is actually running and meaningful? What is your coverage on critical user journeys?" },
+
+  { id:"TD4", type:"techdebt", severity:"critical", icon:"🧱",
+    title:"Monolith Deployment Gridlock", phases:[4,5,6],
+    situation:"Your monolithic codebase has grown so large that a full deployment now takes 4 hours and any failure requires a complete rollback of the entire system. The team can only release once a week. The feature backlog is months deep.",
+    detail:"Deployment frequency is one of the four key DORA metrics — elite teams deploy on demand (multiple times per day); low performers deploy monthly or less. A deployment that takes 4 hours is not just an inconvenience; it is a structural ceiling on your entire engineering organisation's throughput. Strangler Fig is the standard pattern for incrementally decomposing a monolith: new functionality is built as separate services that sit in front of the monolith, gradually replacing it functionality by functionality without a risky big-bang rewrite. Meanwhile, trunk-based development, feature flags, and modular monolith architecture (well-separated internal modules even within a single deployable) can dramatically reduce deployment time and risk without full service extraction. The root cause is always accumulated coupling — every shortcut that bypassed modularity contributed to this moment.",
+    flavour:"Deployment frequency is a proxy for engineering health. If you cannot ship, you cannot compete.",
+    question:"How long does a deployment take end-to-end? What is the maximum safe release cadence your current architecture allows?" },
+
+  { id:"TD5", type:"techdebt", severity:"elevated", icon:"📭",
+    title:"Documentation Desert", phases:[3,4,5,6],
+    situation:"A critical integration with a payment processor was never documented. The engineer who built it left six months ago. It just started failing in a new way. Nobody on the current team knows what it does, how it works, or where to even start debugging.",
+    detail:"Documentation debt is the most invisible form of technical debt — it generates no compiler warnings, no test failures, and no alerts until the moment someone needs the knowledge. The DevOps philosophy treats documentation as a first-class engineering artefact: runbooks live alongside code in version control; Architecture Decision Records (ADRs) capture not just what was decided but why; OpenAPI / AsyncAPI specifications auto-generate and stay current; and READMEs are part of the definition of done. The concept of 'docs-as-code' — applying the same review, version control, and CI practices to documentation as to code — keeps documentation from drifting. Platforms like Backstage provide internal developer portals that centralise service documentation and ownership, so the question 'who owns this and how does it work?' always has an answer.",
+    flavour:"Undocumented systems are technical debt you discover at the worst possible time — when something breaks and the author is gone.",
+    question:"Could a new engineer operate your most critical systems from your documentation alone, without asking anyone for help?" },
+
+  // ── OPPORTUNITIES ──
+  { id:"O1", type:"opportunity", severity:"opportunity", icon:"💼",
+    title:"Fortune 500 Wants to Sign", phases:[3,4,5,6],
+    situation:"A major enterprise client is ready to sign a significant contract. Their security team has sent a vendor assessment with 80 questions covering uptime SLAs, compliance posture, incident response procedures, and data residency. They want answers within the week.",
+    detail:"Enterprise vendor assessments test the maturity of your entire DevOps and security programme in one document. Common questions include: What is your deployment frequency and change failure rate? How do you manage vulnerabilities and patch SLAs? What is your documented RTO/RPO? Can you provide SOC 2 Type II or ISO 27001 certification? How do you handle data residency and processing agreements? Teams with mature DevOps practices — continuous deployment, SLO-driven reliability, automated security controls, and documented incident response — typically complete enterprise assessments in days rather than weeks, because the evidence already exists as operational artefacts. Winning enterprise deals is often the moment organisations recognise that DevOps investment is a revenue driver, not just an engineering preference.",
+    flavour:"Enterprise revenue is transformative. Enterprise procurement is unforgiving. They have walked away from better products for weaker compliance.",
+    question:"Can you answer 80 security and compliance questions confidently — and back every answer up with documented evidence?" },
+
+  { id:"O2", type:"opportunity", severity:"opportunity", icon:"🌍",
+    title:"Open Source Your Core", phases:[2,3,4,5,6],
+    situation:"The developer community is asking for it. Open sourcing your core engine could generate thousands of GitHub stars, inbound contributions, and massive brand credibility — but only if the codebase is something you are not embarrassed to show the world.",
+    detail:"Open sourcing a codebase forces a reckoning with code quality, security hygiene, and documentation completeness — all at once. Credentials, API keys, or internal hostnames embedded in the code (even in git history) become public. Undocumented architectural decisions become community frustrations. Poor test coverage means external contributors cannot safely contribute. The DevOps practices that make open sourcing viable — clean dependency management, comprehensive README and contribution docs, zero secrets in code, semantic versioning, automated CI visible to contributors, and a clear code of conduct — are the same practices that make a codebase maintainable internally. Teams that open source successfully often cite the process as the most valuable codebase cleanup exercise they have ever done.",
+    flavour:"Open source is a mirror. It shows the world exactly how you really build software. Is the quality actually there?",
+    question:"Would you be proud to show your codebase publicly today? Is it clean, well-tested, documented, and free of exposed secrets?" },
+
+  { id:"O3", type:"opportunity", severity:"opportunity", icon:"🏆",
+    title:"Performance Benchmark Goes Viral", phases:[2,3,4,5,6],
+    situation:"A respected independent blogger is running a head-to-head performance comparison in your space. Results go live next week. The last winner dominated the news cycle for a month and saw 3× trial signups. The last loser is still trying to recover.",
+    detail:"Independent performance benchmarks are one of the highest-credibility forms of technical marketing — and one of the most unforgiving. Benchmarks typically measure throughput (requests per second), latency (p50, p95, p99 response times), concurrency handling, and resource efficiency. Teams with a continuous performance engineering practice — tracking these metrics in dashboards, setting performance budgets in CI, running regular load tests, and profiling hot paths proactively — can be confident in benchmark results because they already know the numbers. Teams who have not measured systematically often discover their p99 latency at the worst possible moment. The performance investment that pays off in a benchmark was made over the preceding sprints, not the week before results are published.",
+    flavour:"Benchmarks are unforgiving. You either performed consistently, or you did not. There is no narrative spin for a slow p99.",
+    question:"How confident are you in your performance profile right now? Have you measured and optimised your p95/p99 response times recently?" },
+
+  { id:"O4", type:"opportunity", severity:"opportunity", icon:"🎯",
+    title:"Acquire a Competitor's Users", phases:[1,2,3],
+    situation:"A competing product just shut down with minimal notice. Their user base is actively searching for alternatives right now, and several are publicly asking about your product on social media. This window closes in 48 hours.",
+    detail:"Sudden user acquisition events are a test of operational readiness across every dimension simultaneously: onboarding flows must handle a registration surge without rate-limiting legitimate signups; infrastructure must scale to absorb new concurrent sessions; support channels must process a spike in inbound queries; and data migration tooling may be needed if you want to help users import from the defunct competitor. Teams that have invested in auto-scaling, chaos engineering, and load testing are able to seize this kind of opportunity confidently. Teams that have not find themselves choosing between a risky scramble and leaving growth on the table. The DevOps principle of 'design for operational excellence from day one' converts unexpected events from threats into competitive advantages.",
+    flavour:"Unexpected growth is both a gift and a test. Can your platform absorb a sudden influx without buckling?",
+    question:"Is your platform stable and scalable enough to confidently onboard a surge of new users right now, today?" },
+];
+
+const DOMAIN_LABELS = {
+  security:"Security", stability:"Stability / Uptime",
+  performance:"Performance", compliance:"Compliance",
+  techdebt:"Tech Debt", opportunity:"Opportunity"
+};
+const DOMAIN_COLORS = {
+  security:"#ff4d6d", stability:"#4dc3ff", performance:"#ff9f43",
+  compliance:"#b47dff", techdebt:"#ffb800", opportunity:"#00ff9d"
+};
+
+let filteredCards = [...CARDS];
+let currentIndex = 0;
+let activeFilter = "all";
+
+function sprintBadge(phases) {
+  if (phases.length === 6) return "ALL SPRINTS";
+  return phases.map(p => "S"+p).join(" · ");
+}
+
+function renderCard(card) {
+  const sevClass = card.severity==="critical"?"sev-critical":card.severity==="elevated"?"sev-elevated":"sev-opportunity";
+  const sevLabel = card.severity==="critical"?"⚠ CRITICAL":card.severity==="elevated"?"ELEVATED":"OPPORTUNITY";
+  return `<div class="card ${card.type}">
+    <div class="card-stripe"></div>
+    <div class="card-meta">
+      <div class="domain-badge">${DOMAIN_LABELS[card.type].toUpperCase()}</div>
+      <div class="severity-badge ${sevClass}">${sevLabel}</div>
+    </div>
+    <div class="card-icon-area"><span class="card-icon">${card.icon}</span></div>
+    <div class="card-title">${card.title}</div>
+    <div class="card-divider"></div>
+    <div class="card-body">
+      <div class="card-situation">${card.situation}</div>
+      <div class="card-detail">${card.detail}</div>
+      <div class="card-flavour">${card.flavour}</div>
+    </div>
+    <div class="card-question-area">
+      <div class="card-question-label">💬 TEAM DISCUSSION</div>
+      <div class="card-question">${card.question}</div>
+    </div>
+    <div class="card-id">DOD·${card.id} &nbsp;·&nbsp; ${sprintBadge(card.phases)}</div>
+  </div>`;
+}
+
+function updateDisplay() {
+  const stage = document.getElementById("cardStage");
+  const card = filteredCards[currentIndex];
+  if (!card) { stage.innerHTML='<div style="color:#444;text-align:center;padding-top:200px;font-family:Space Mono,monospace;font-size:12px;">No cards in this filter.</div>'; return; }
+  stage.innerHTML = renderCard(card);
+  document.getElementById("counter").textContent =
+    `CARD ${currentIndex+1} OF ${filteredCards.length}  ·  ${filteredCards.length} UNIQUE INCIDENTS  ·  USE ← → ARROW KEYS`;
+  document.getElementById("prevBtn").disabled = currentIndex===0;
+  document.getElementById("nextBtn").disabled = currentIndex===filteredCards.length-1;
+}
+
+function navigate(dir) {
+  currentIndex = Math.max(0, Math.min(filteredCards.length-1, currentIndex+dir));
+  updateDisplay();
+}
+
+function buildFilterBar() {
+  const filters = [
+    {key:"all",label:"ALL CARDS"},
+    {key:"security",label:"🛡 SECURITY"},
+    {key:"stability",label:"📡 STABILITY"},
+    {key:"performance",label:"🚀 PERFORMANCE"},
+    {key:"compliance",label:"📋 COMPLIANCE"},
+    {key:"techdebt",label:"🔧 TECH DEBT"},
+    {key:"opportunity",label:"✨ OPPORTUNITY"},
+  ];
+  document.getElementById("filterBar").innerHTML = filters.map(f=>`
+    <button class="filter-btn ${f.key===activeFilter?"active":""}"
+      onclick="setFilter('${f.key}')"
+      style="${f.key!=='all'?`border-color:${DOMAIN_COLORS[f.key]}44;`:''}">
+      ${f.label}
+    </button>`).join("");
+}
+
+function setFilter(key) {
+  activeFilter=key;
+  filteredCards = key==="all"?[...CARDS]:CARDS.filter(c=>c.type===key);
+  currentIndex=0; buildFilterBar(); updateDisplay();
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"||e.key==="ArrowDown") navigate(1);
+  if(e.key==="ArrowLeft" ||e.key==="ArrowUp")   navigate(-1);
+});
+
+buildFilterBar();
+updateDisplay();
+</script>
+</body>
+</html>

@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deploy or Die — DevOps Principles & Practices</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #060e0a;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 40px;
+}
+
+.nav-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; max-width: 600px; margin-bottom: 14px; gap: 12px;
+}
+.nav-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.nav-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 3px; color: #00ff9d; line-height: 1.2;
+}
+.nav-title span { color: #4dc3ff; display: block; font-size: 12px; letter-spacing: 3px; opacity: 0.55; }
+.xebia-logo { opacity: 0.28; transition: opacity 0.2s; }
+.xebia-logo:hover { opacity: 0.5; }
+.nav-btn {
+  background: rgba(0,255,157,0.06); border: 1px solid rgba(0,255,157,0.2); border-radius: 10px;
+  color: #00ff9d; font-family: 'Space Mono', monospace; font-size: 13px;
+  padding: 10px 18px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.nav-btn:hover { background: rgba(0,255,157,0.12); }
+.nav-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+.filter-bar {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+  margin-bottom: 14px; max-width: 600px; width: 100%;
+}
+.filter-btn {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px;
+  padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0,255,157,0.15);
+  background: transparent; color: rgba(255,255,255,0.35); cursor: pointer; transition: all 0.15s;
+}
+.filter-btn:hover { color: #fff; background: rgba(0,255,157,0.07); }
+.filter-btn.active { color: #00ff9d; background: rgba(0,255,157,0.1); border-color: rgba(0,255,157,0.45); font-weight: 700; }
+
+.counter {
+  font-family: 'Space Mono', monospace; font-size: 10px; color: #2a4a38;
+  text-align: center; margin-bottom: 14px; letter-spacing: 2px;
+}
+
+/* A5 = 148mm × 210mm = 559 × 794px at 96dpi */
+.card-stage { width: 559px; height: 794px; flex-shrink: 0; }
+
+.card {
+  width: 100%; height: 100%; border-radius: 20px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,157,0.08);
+  position: relative;
+  background: linear-gradient(160deg, #07140d 0%, #050e09 50%, #030a06 100%);
+  border: 1.5px solid rgba(0,255,157,0.15);
+}
+.card.culture     { border-color:rgba(0,255,157,0.25);  background:linear-gradient(160deg,#071409 0%,#040e07 100%); }
+.card.cicd        { border-color:rgba(77,195,255,0.25); background:linear-gradient(160deg,#040d14 0%,#030910 100%); }
+.card.security    { border-color:rgba(255,77,109,0.25); background:linear-gradient(160deg,#140408 0%,#0e0306 100%); }
+.card.observe     { border-color:rgba(180,125,255,0.25);background:linear-gradient(160deg,#0c071a 0%,#080514 100%); }
+.card.reliability { border-color:rgba(255,184,0,0.25);  background:linear-gradient(160deg,#140e00 0%,#0e0a00 100%); }
+.card.platform    { border-color:rgba(255,159,67,0.25); background:linear-gradient(160deg,#140900 0%,#0e0700 100%); }
+.card.data        { border-color:rgba(95,255,202,0.25); background:linear-gradient(160deg,#071410 0%,#040e0b 100%); }
+
+.card-stripe { height: 4px; width: 100%; flex-shrink: 0; }
+.card.culture     .card-stripe { background:linear-gradient(90deg,#00ff9d,#00cc7a); }
+.card.cicd        .card-stripe { background:linear-gradient(90deg,#4dc3ff,#1aabff); }
+.card.security    .card-stripe { background:linear-gradient(90deg,#ff4d6d,#ff1a4a); }
+.card.observe     .card-stripe { background:linear-gradient(90deg,#b47dff,#9040ff); }
+.card.reliability .card-stripe { background:linear-gradient(90deg,#ffb800,#e09000); }
+.card.platform    .card-stripe { background:linear-gradient(90deg,#ff9f43,#ff7800); }
+.card.data        .card-stripe { background:linear-gradient(90deg,#5fffca,#00d4a0); }
+
+/* Top meta */
+.card-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 18px 4px; flex-shrink: 0;
+}
+.category-badge {
+  font-family: 'Space Mono', monospace; font-size: 8px; font-weight: 700;
+  letter-spacing: 1.8px; padding: 3px 10px; border-radius: 12px; text-transform: uppercase;
+}
+.card.culture     .category-badge { background:rgba(0,255,157,0.12);  color:#5fffca; border:1px solid rgba(0,255,157,0.3); }
+.card.cicd        .category-badge { background:rgba(77,195,255,0.12); color:#7dd5f5; border:1px solid rgba(77,195,255,0.3); }
+.card.security    .category-badge { background:rgba(255,77,109,0.14); color:#ff8fa3; border:1px solid rgba(255,77,109,0.3); }
+.card.observe     .category-badge { background:rgba(180,125,255,0.12);color:#cba3ff; border:1px solid rgba(180,125,255,0.3); }
+.card.reliability .category-badge { background:rgba(255,184,0,0.12);  color:#ffd45e; border:1px solid rgba(255,184,0,0.3); }
+.card.platform    .category-badge { background:rgba(255,159,67,0.12); color:#ffc07a; border:1px solid rgba(255,159,67,0.3); }
+.card.data        .category-badge { background:rgba(95,255,202,0.1);  color:#5fffca; border:1px solid rgba(95,255,202,0.3); }
+
+.sprint-badge {
+  font-family: 'Space Mono', monospace; font-size: 7.5px; letter-spacing: 1.5px;
+  padding: 3px 10px; border-radius: 12px; color:rgba(255,255,255,0.22);
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07);
+}
+
+/* Icon + practice + title */
+.card-icon-area { text-align: center; padding: 5px 0 1px; flex-shrink: 0; }
+.card-icon { font-size: 46px; line-height: 1; display: block; }
+.card-practice { text-align: center; padding: 3px 24px 0; flex-shrink: 0; }
+.card-practice span {
+  font-family: 'Space Mono', monospace; font-size: 8.5px; letter-spacing: 1.8px;
+  color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 2px 10px;
+}
+.card-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px;
+  text-align: center; padding: 4px 22px 0; line-height: 1.1; flex-shrink: 0;
+}
+.card.culture     .card-title { color:#5fffca; }
+.card.cicd        .card-title { color:#7dd5f5; }
+.card.security    .card-title { color:#ff8fa3; }
+.card.observe     .card-title { color:#cba3ff; }
+.card.reliability .card-title { color:#ffd45e; }
+.card.platform    .card-title { color:#ffc07a; }
+.card.data        .card-title { color:#5fffca; }
+
+.card-divider { height: 1px; margin: 7px 22px; opacity: 0.1; flex-shrink: 0; background: #fff; }
+
+/* Body */
+.card-body {
+  padding: 0 20px; flex: 1; display: flex; flex-direction: column;
+  gap: 0; overflow: hidden; min-height: 0;
+}
+.card-body-text { font-size: 11.5px; line-height: 1.6; color:rgba(255,255,255,0.7); margin-bottom: 7px; }
+
+/* Benefits section */
+.card-benefits {
+  margin-bottom: 7px; padding: 8px 12px; border-radius: 8px; flex-shrink: 0;
+}
+.card.culture     .card-benefits { background:rgba(0,255,157,0.04);  border:1px solid rgba(0,255,157,0.09); }
+.card.cicd        .card-benefits { background:rgba(77,195,255,0.04); border:1px solid rgba(77,195,255,0.09); }
+.card.security    .card-benefits { background:rgba(255,77,109,0.04); border:1px solid rgba(255,77,109,0.09); }
+.card.observe     .card-benefits { background:rgba(180,125,255,0.04);border:1px solid rgba(180,125,255,0.09); }
+.card.reliability .card-benefits { background:rgba(255,184,0,0.04);  border:1px solid rgba(255,184,0,0.09); }
+.card.platform    .card-benefits { background:rgba(255,159,67,0.04); border:1px solid rgba(255,159,67,0.09); }
+.card.data        .card-benefits { background:rgba(95,255,202,0.04); border:1px solid rgba(95,255,202,0.09); }
+
+.benefits-label {
+  font-family: 'Space Mono', monospace; font-size: 7px; letter-spacing: 1.8px;
+  color:rgba(255,255,255,0.2); margin-bottom: 5px;
+}
+.benefits-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.benefits-list li {
+  font-size: 10.5px; line-height: 1.5; color:rgba(255,255,255,0.55);
+  padding-left: 14px; position: relative;
+}
+.benefits-list li::before {
+  content: "✓"; position: absolute; left: 0; font-size: 9px; font-weight: 700;
+}
+.card.culture     .benefits-list li::before { color:#5fffca; }
+.card.cicd        .benefits-list li::before { color:#7dd5f5; }
+.card.security    .benefits-list li::before { color:#ff8fa3; }
+.card.observe     .benefits-list li::before { color:#cba3ff; }
+.card.reliability .benefits-list li::before { color:#ffd45e; }
+.card.platform    .benefits-list li::before { color:#ffc07a; }
+.card.data        .benefits-list li::before { color:#5fffca; }
+
+/* Two side-by-side boxes */
+.card-boxes {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+  margin-top: auto; flex-shrink: 0;
+}
+.card-box {
+  padding: 8px 10px; border-radius: 8px;
+}
+.card.culture     .card-box { background:rgba(0,255,157,0.05);  border:1px solid rgba(0,255,157,0.1); }
+.card.cicd        .card-box { background:rgba(77,195,255,0.05); border:1px solid rgba(77,195,255,0.1); }
+.card.security    .card-box { background:rgba(255,77,109,0.05); border:1px solid rgba(255,77,109,0.1); }
+.card.observe     .card-box { background:rgba(180,125,255,0.05);border:1px solid rgba(180,125,255,0.1); }
+.card.reliability .card-box { background:rgba(255,184,0,0.05);  border:1px solid rgba(255,184,0,0.1); }
+.card.platform    .card-box { background:rgba(255,159,67,0.05); border:1px solid rgba(255,159,67,0.1); }
+.card.data        .card-box { background:rgba(95,255,202,0.05); border:1px solid rgba(95,255,202,0.1); }
+
+.box-label {
+  font-family: 'Space Mono', monospace; font-size: 7px; letter-spacing: 1.8px;
+  color:rgba(255,255,255,0.2); margin-bottom: 4px;
+}
+.box-text { font-size: 11px; line-height: 1.55; color:rgba(255,255,255,0.48); font-style: italic; }
+
+/* Question + logo footer */
+.card-footer {
+  padding: 7px 20px 10px; flex-shrink: 0; border-top:1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+}
+.card-footer-left { flex: 1; min-width: 0; }
+.card-question-label {
+  font-family: 'Space Mono', monospace; font-size: 7px; letter-spacing: 2px;
+  color:rgba(255,255,255,0.18); margin-bottom: 4px;
+}
+.card-question { font-size: 11px; line-height: 1.5; color:rgba(255,255,255,0.42); font-style: italic; }
+.card-logo { opacity: 0.14; flex-shrink: 0; }
+
+.card-id {
+  position: absolute; bottom: 8px; right: 14px;
+  font-family: 'Space Mono', monospace; font-size: 7.5px;
+  color:rgba(255,255,255,0.07); letter-spacing: 1px;
+}
+
+@media print {
+  body { background:white; padding:0;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+  .nav-bar,.filter-bar,.counter { display:none !important; }
+  .card-stage { width:148mm; height:210mm; page-break-after:always; }
+  .card { border-radius:10px; }
+}
+@page { size:A5 portrait; margin:0; }
+</style>
+</head>
+<body>
+
+<div class="nav-bar">
+  <div class="nav-left">
+    <div class="nav-title">
+      DEVOPS PRINCIPLES &amp; PRACTICES
+      <span>DEPLOY OR DIE — REFERENCE DECK</span>
+    </div>
+    <svg class="xebia-logo" width="56" height="19" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+      <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+    </svg>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">← PREV</button>
+    <button class="nav-btn" id="nextBtn" onclick="navigate(1)">NEXT →</button>
+  </div>
+</div>
+
+<div class="filter-bar" id="filterBar"></div>
+<div class="counter" id="counter"></div>
+<div class="card-stage" id="cardStage"></div>
+
+<script>
+// Inlined SVG string for logo inside each card
+const XEBIA_SVG = `<svg width="44" height="15" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/><path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/></svg>`;
+
+const CARDS = [
+
+  // ══ SPRINT 1 — MVP LAUNCH ══════════════════════════════════════════════════
+  { id:"P01", sprint:1, sprintName:"MVP Launch", category:"culture",
+    practice:"DevOps / Shared Ownership", icon:"🚀", title:"You Build It, You Run It",
+    body:"When developers own the production health of their features, quality improves dramatically. The team that ships the code should be on the hook when it breaks — this incentive alignment eliminates the 'throw it over the wall to ops' dynamic that causes slow feedback, poor quality, and mutual blame.",
+    benefits:[
+      "Faster incident response — engineers who wrote the code diagnose it fastest",
+      "Higher build quality — on-call pain creates immediate pressure to fix root causes",
+      "Fewer handoff delays — no waiting for a separate ops team to investigate",
+      "Engineers design for operability from day one (logging, alerts, runbooks)",
+    ],
+    realWorld:"Amazon pioneered this model in 2006. Teams went from handing off to ops to owning their services end-to-end — faster incident response, higher quality, and engineers who design for operability from the start.",
+    practical:"A squad shipping a new checkout flow also owns the on-call rotation for it. When latency spikes at midnight, the engineers who wrote the code are the ones who get paged — and fix it permanently rather than passing it to ops.",
+    question:"Who is responsible when your service goes down at 2am? Is it the same team that wrote the code?" },
+
+  { id:"P02", sprint:1, sprintName:"MVP Launch", category:"cicd",
+    practice:"CI/CD", icon:"🔁", title:"Continuous Integration from Day One",
+    body:"Merging code frequently into a shared branch and running automated tests prevents integration hell. Even a simple CI pipeline is not optional — it is the foundation for automated testing, deployment pipelines, security scanning, and quality gates.",
+    benefits:[
+      "Eliminates multi-week integration phases at end of sprint",
+      "Catches regressions within minutes of introduction, not weeks later",
+      "Builds shared confidence — everyone knows the main branch is green",
+      "Creates the foundation for CD, security scanning, and release automation",
+    ],
+    realWorld:"Teams practising CI merge multiple times per day. Teams without it often spend the last week of a sprint just getting diverged work to compile together — pure waste that compounds every release.",
+    practical:"A developer pushes a small auth fix. Within 90 seconds, CI runs 400 unit tests, a lint check, and a security scan. The build is green. They merge. No integration meeting. No 'it works on my machine'.",
+    question:"How often does your team merge to main? How long does it take to get feedback on a broken build?" },
+
+  { id:"P03", sprint:1, sprintName:"MVP Launch", category:"security",
+    practice:"DevSecOps / Shift Left", icon:"🛡", title:"Security is Not a Sprint",
+    body:"Security hardening retroactively is 10× more expensive than building it in. Shift-left means treating security as a continuous engineering discipline: rotate credentials, scan dependencies, enforce least-privilege, and run automated security tests in CI on every commit.",
+    benefits:[
+      "Reduces cost of fixing vulnerabilities by 10–100× versus post-launch remediation",
+      "Automated scanning catches CVEs before they ever reach production",
+      "Prevents credential leaks that can take down a product within hours",
+      "Builds a compliance evidence trail continuously rather than scrambling pre-audit",
+    ],
+    realWorld:"Log4Shell (2021) exploited a dependency issue present in millions of projects. Organisations with automated SBOM scanning patched it in hours. Others took weeks — some were breached before they knew they were vulnerable.",
+    practical:"Every pull request automatically runs OWASP dependency-check. A developer adds a logging library with a known CVE. The pipeline blocks the merge and links to the remediation. The vulnerability never reaches production.",
+    question:"Does security sit at the end of your development process, or is it embedded from the first commit?" },
+
+  { id:"P04", sprint:1, sprintName:"MVP Launch", category:"observe",
+    practice:"Observability", icon:"📊", title:"If It Isn't Monitored, It Doesn't Exist",
+    body:"You cannot improve — or defend — what you cannot see. Logs, metrics, and traces from day one mean that when something breaks, you understand why. The three pillars: structured logs (what happened), metrics (how the system performs), distributed traces (where time is spent across services).",
+    benefits:[
+      "Reduces Mean Time to Detect (MTTD) from hours or days to seconds",
+      "Turns post-mortem investigation from guesswork into evidence",
+      "Enables proactive alerting before users are impacted",
+      "Provides the data foundation for SLOs, capacity planning, and performance tuning",
+    ],
+    realWorld:"The DORA research programme found elite teams restore service 2,604× faster than low performers. The single biggest differentiator is observability and automated alerting — not team size or budget.",
+    practical:"An API endpoint slows from 80ms to 3s. A Grafana alert fires within 60 seconds. The engineer opens a trace and sees 95% of time is in a single database call. The index is added and deployed within the hour.",
+    question:"If your most critical service started failing silently right now, how long before anyone noticed?" },
+
+  { id:"P05", sprint:2, sprintName:"Early Growth", category:"culture",
+    practice:"Technical Debt Management", icon:"🔧", title:"Technical Debt is a Business Risk",
+    body:"Debt isn't just slow code — it is slow teams, brittle deploys, burnt-out engineers, and features that take weeks instead of days. Every sprint you ignore it, the interest compounds. Track it explicitly, prioritise it against features, and pay it down deliberately.",
+    benefits:[
+      "Prevents the velocity cliff where adding features becomes nearly impossible",
+      "Reduces engineer burnout caused by constant firefighting of fragile systems",
+      "Shortens delivery lead time — clean code ships faster and with fewer defects",
+      "Lowers incident rate as coupling and complexity are systematically reduced",
+    ],
+    realWorld:"Stripe intentionally allocates 30% of engineering time to debt reduction. Teams that don't do this create a self-reinforcing spiral: features become harder to ship, engineers burn out, and eventually the system stops evolving.",
+    practical:"Each sprint, the team's board has a fixed 'debt lane' — 20% of capacity. This week: extract a tangled billing module into a clean service. Next sprint, adding the new pricing model takes two days instead of two weeks.",
+    question:"How do you track technical debt? Is it on the backlog with business justification, or invisible until it causes a crisis?" },
+
+  { id:"P06", sprint:2, sprintName:"Early Growth", category:"cicd",
+    practice:"Continuous Delivery / Trunk-Based Development", icon:"🔁", title:"Feedback Loops Must Be Short",
+    body:"The longer it takes to discover a change broke something, the more expensive the fix. Automated tests, feature flags, canary deployments, and staged rollouts compress the feedback window from days to minutes. Trunk-based development — everyone merging to main daily — is the prerequisite.",
+    benefits:[
+      "Bugs found in minutes cost a fraction of bugs found by customers days later",
+      "Canary deployments limit blast radius — bad releases reach 1% before 100%",
+      "Feature flags enable instant rollback without a full deployment",
+      "Frequent merging prevents long-lived branches that diverge and break on merge",
+    ],
+    realWorld:"Netflix deploys hundreds of times per day. A problematic release reaches 1% of users before full rollout — a near-instant feedback loop that bounds the blast radius of any mistake.",
+    practical:"A new recommendations algorithm ships behind a feature flag to 2% of traffic. Engagement metrics drop 8% in that cohort. The flag is turned off within 20 minutes. Zero rollback ceremony. Zero user impact at scale.",
+    question:"How long from code commit to knowing whether it broke something in production?" },
+
+  { id:"P07", sprint:2, sprintName:"Early Growth", category:"reliability",
+    practice:"Capacity Planning / Performance Engineering", icon:"📈", title:"Design for Load Before You Need It",
+    body:"Viral moments don't announce themselves. Load testing, horizontal scaling strategies, auto-scaling policies, and caching layers are investments that pay off exactly once — in the moment everything is on the line.",
+    benefits:[
+      "Converts surprise traffic spikes from outages into growth events",
+      "Reveals bottlenecks (databases, caches, third-party APIs) before users do",
+      "Auto-scaling reduces infrastructure cost during normal load while handling peaks",
+      "Builds team confidence to pursue growth without fear of the platform failing",
+    ],
+    realWorld:"The 2018 FIFA World Cup streaming service suffered massive outages because load testing had not kept pace with actual growth projections. Brand damage and subscriber losses lasted far beyond the incident.",
+    practical:"Every sprint, the team runs a 30-minute load test at 10× current peak. This week they discover their session store saturates at 8× — they switch to Redis Cluster before it ever becomes a user problem.",
+    question:"What is the maximum load your system has been tested against? How does that compare to a realistic peak scenario?" },
+
+  { id:"P08", sprint:2, sprintName:"Early Growth", category:"culture",
+    practice:"Incident Review Culture", icon:"🤝", title:"Blameless Post-Mortems",
+    body:"When incidents happen, the goal is systemic learning — not punishment. A blameless culture means engineers report honestly, systemic causes get fixed, and failures don't repeat. Blame culture hides problems until they become catastrophic.",
+    benefits:[
+      "Prevents repeat incidents by fixing root causes rather than symptoms",
+      "Encourages honest reporting of near-misses — the most valuable safety signal",
+      "Builds psychological safety that accelerates learning across the whole team",
+      "Creates a documented knowledge base of failure modes and mitigations",
+    ],
+    realWorld:"Google's SRE handbook mandates blameless post-mortems. Their core finding: incidents are almost always systemic — wrong incentives, missing tooling, unclear processes — not individual incompetence.",
+    practical:"A misconfigured deployment causes 40 minutes of downtime. The post-mortem produces three action items: add config validation to CI, create a deployment checklist, improve the rollback runbook. The engineer is not named in the report.",
+    question:"After your last incident, did the post-mortem result in systemic changes, or in someone being held accountable?" },
+
+  { id:"P09", sprint:3, sprintName:"Scale-Up", category:"platform",
+    practice:"Infrastructure as Code / Toil Reduction", icon:"🏗", title:"Automate Everything That Hurts",
+    body:"Toil is repetitive, manual, automatable operational work that scales with load rather than with engineering investment. Every manual deployment, manual scaling action, and manual config change is a reliability risk and a productivity drain. If a human must do it repeatedly, it is toil.",
+    benefits:[
+      "Frees engineering time from repetitive tasks for higher-value work",
+      "Eliminates human error as the cause of configuration and deployment incidents",
+      "Scales operations without scaling headcount proportionally",
+      "Creates a reproducible, auditable record of every infrastructure change",
+    ],
+    realWorld:"Google's SRE teams operate under a formal 50% toil cap. If operational toil exceeds half of engineering time, the team stops feature work and invests in automation until the cap is restored — enforced policy, not aspiration.",
+    practical:"The ops team used to manually provision test environments — 45 minutes per request. They write a Terraform module in one sprint. Now engineers self-serve a full environment in 4 minutes via a Slack command.",
+    question:"What percentage of your team's time last week was spent on repetitive manual operations that could be automated?" },
+
+  { id:"P10", sprint:3, sprintName:"Scale-Up", category:"reliability",
+    practice:"Chaos Engineering / Feature Flags", icon:"🧪", title:"Test in Production (Safely)",
+    body:"Resilience cannot be proven in staging — it must be demonstrated under real production conditions. Chaos engineering deliberately introduces controlled failures to verify that resilience mechanisms actually work. Feature flags limit blast radius on every release.",
+    benefits:[
+      "Validates that failover, circuit breakers, and fallbacks actually work under load",
+      "Builds team confidence and on-call muscle memory before a real emergency",
+      "Uncovers hidden dependencies and single points of failure proactively",
+      "Feature flags reduce deployment risk — any release can be instantly toggled off",
+    ],
+    realWorld:"Netflix's Chaos Monkey — which randomly terminates production instances — has been running since 2011. Teams running chaos experiments have dramatically lower MTTR when real failures occur.",
+    practical:"Every Tuesday the team kills one random microservice during business hours. This week they discover their circuit breaker timeout was misconfigured. Fixed in 20 minutes — before a real failure exposes it at the worst possible time.",
+    question:"Have you ever deliberately killed a production service to verify your failover works? Would you be confident to?" },
+
+  { id:"P11", sprint:3, sprintName:"Scale-Up", category:"reliability",
+    practice:"Microservices / Event-Driven Architecture", icon:"🔗", title:"Decouple to Survive",
+    body:"Tight coupling is the root cause of cascading failures. When services share state or deploy together, one failure becomes many. Loose coupling — through message queues, circuit breakers, and independent deployment — means failures stay contained.",
+    benefits:[
+      "Failures are isolated — one component failing cannot take the whole system down",
+      "Services can be deployed, scaled, and updated independently",
+      "Teams can work and release in parallel without coordination bottlenecks",
+      "Enables incremental modernisation — replace one service without touching others",
+    ],
+    realWorld:"Amazon's 2002 Bezos API mandate — all teams expose capabilities through service interfaces — created the architectural foundation for AWS. The decoupling enforced by that decision became a $90B cloud business.",
+    practical:"The email service goes down. Because order confirmations are sent via an async queue, checkout continues working. When email recovers it drains the backlog. Customers get emails 45 minutes late. No orders are lost.",
+    question:"If your most critical downstream service went down right now, how many user-facing features would fail with it?" },
+
+  { id:"P12", sprint:3, sprintName:"Scale-Up", category:"observe",
+    practice:"Site Reliability Engineering (SRE)", icon:"📉", title:"SLOs, SLIs and Error Budgets",
+    body:"How much downtime is acceptable? Define it. Measure it. An error budget is the gap between 100% and your SLO — it's the team's licence to take risk. Burn the budget too fast and stability work takes priority over features, automatically, by policy, without debate.",
+    benefits:[
+      "Eliminates the perpetual Dev vs Ops conflict over stability vs speed",
+      "Provides an objective, data-driven basis for prioritisation decisions",
+      "Aligns engineering investment with actual user experience, not gut feel",
+      "Error budgets give teams permission to take risk when reliability is healthy",
+    ],
+    realWorld:"Google's SRE model introduced error budgets to eliminate the Dev/Ops conflict. When the budget is spent, everyone agrees on the priority — without politics. When healthy, teams have licence to ship fast.",
+    practical:"The team's SLO is 99.5% availability. By the 20th they've used 80% of their error budget. The next deployment is paused. They spend the remaining days fixing flaky tests and stabilising deploys. Next month the budget is healthy.",
+    question:"Do you have explicit uptime targets? Does your team know the current error budget balance?" },
+
+  { id:"P13", sprint:4, sprintName:"Enterprise Push", category:"security",
+    practice:"Policy as Code / Automated Compliance", icon:"📋", title:"Compliance as Code",
+    body:"Manual compliance audits are slow, error-prone, and don't scale. When compliance controls are codified as policy, they run automatically on every deployment. Evidence is generated continuously as a by-product of normal operations — not assembled under pressure before an audit.",
+    benefits:[
+      "Reduces audit preparation from weeks to hours by generating evidence continuously",
+      "Prevents non-compliant configurations from ever reaching production",
+      "Scales compliance across hundreds of services without manual review",
+      "Creates an immutable, timestamped trail of every compliance check and outcome",
+    ],
+    realWorld:"HashiCorp Sentinel and Open Policy Agent (OPA) let teams encode compliance rules in CI/CD pipelines. Organisations using this have reduced audit preparation time from weeks to hours.",
+    practical:"A developer deploys a container running as root. The OPA policy in the pipeline blocks the deployment with a clear error and link to the hardening guide. The fix takes 5 minutes. The compliance log records the event automatically.",
+    question:"How long would it take your team to produce compliance evidence for a surprise audit?" },
+
+  { id:"P14", sprint:4, sprintName:"Enterprise Push", category:"security",
+    practice:"Zero Trust Security", icon:"🔐", title:"Zero Trust Architecture",
+    body:"Never trust, always verify. In a Zero Trust model, nothing inside or outside the network is trusted by default. Every access request is authenticated and authorised. Network location is not a security boundary — identity is. This limits blast radius when credentials are compromised.",
+    benefits:[
+      "Dramatically limits lateral movement if credentials are stolen",
+      "Removes implicit trust in VPN or internal network location",
+      "Short-lived tokens mean stolen credentials expire quickly",
+      "Every access attempt is logged — providing a complete forensic trail",
+    ],
+    realWorld:"Google's BeyondCorp initiative, launched after the Aurora breach in 2009, moved all access controls from network perimeters to identity-based verification. It became the blueprint for Zero Trust architecture.",
+    practical:"An engineer's laptop is compromised. Because every service requires a short-lived token from the identity provider, the attacker cannot pivot. Blast radius is limited to the engineer's own permissions — not the entire VPN subnet.",
+    question:"If an attacker obtained valid credentials for one service, how far could they move through your system?" },
+
+  { id:"P15", sprint:4, sprintName:"Enterprise Push", category:"observe",
+    practice:"Observability / Compliance", icon:"🗂", title:"Immutable Audit Trails",
+    body:"Who changed what, when, and why? Centralised, tamper-evident logging captures every access, deployment, and configuration change. This serves three purposes: debugging mysterious incidents, demonstrating compliance to regulators, and detecting security breaches.",
+    benefits:[
+      "Answers regulatory 'who accessed what' questions in minutes, not days",
+      "Provides forensic evidence for security incident investigation",
+      "Enables rapid root cause analysis for mysterious production failures",
+      "Demonstrates continuous compliance rather than point-in-time remediation",
+    ],
+    realWorld:"GDPR requires organisations to demonstrate lawful processing of personal data on demand. Without comprehensive, immutable audit logs this is impossible. Fines reach 4% of global annual revenue.",
+    practical:"A regulator asks: 'Who accessed customer records between March 1–15?' The compliance team runs one query against the centralised audit log and produces a signed export in 8 minutes. No scramble. The answer was always there.",
+    question:"Are your audit logs centralised, tamper-evident, and retained for the period your obligations require?" },
+
+  { id:"P16", sprint:4, sprintName:"Enterprise Push", category:"culture",
+    practice:"Inclusive Design / Compliance", icon:"♿", title:"Accessibility is Not Optional",
+    body:"WCAG 2.1 AA is a legal requirement in the EU, UK, US, and most major markets. Accessible systems are better engineered: cleaner semantic structure, more robust, serving a broader user base. Retrofitting accessibility is 5–10× more expensive than building it in.",
+    benefits:[
+      "Avoids legal liability — accessibility lawsuits and regulatory fines are rising sharply",
+      "Expands addressable market — 1 in 5 people have a disability affecting digital use",
+      "Improves SEO — accessible semantic markup is rewarded by search engines",
+      "Better code quality overall — accessibility constraints drive cleaner component design",
+    ],
+    realWorld:"Domino's Pizza lost a landmark US Supreme Court case in 2019 establishing digital ADA compliance. The EU's European Accessibility Act, enforced from 2025, applies across all EU digital products.",
+    practical:"Every design system component is built with axe-core tests and keyboard navigation as acceptance criteria. A new modal is flagged in CI for missing focus trapping. Fixed before the PR merges — not in a compliance audit six months later.",
+    question:"When did you last test your product with a screen reader? Is accessibility part of your definition of done?" },
+
+  { id:"P17", sprint:5, sprintName:"Stability War", category:"observe",
+    practice:"Distributed Tracing / Observability", icon:"📡", title:"Observability is Not Monitoring",
+    body:"Monitoring tells you something is wrong. Observability tells you why. In a complex distributed system, dashboards show symptoms without revealing causes. Observability — correlated logs, metrics, and distributed traces — lets engineers ask arbitrary questions about system state they didn't know to ask before the incident.",
+    benefits:[
+      "Reduces MTTR by 50%+ — engineers find root cause rather than hunting symptoms",
+      "Enables debugging of novel failure modes with no pre-existing dashboard",
+      "Eliminates hours of log grep and cross-team pinging during incidents",
+      "Distributed traces reveal latency sources invisible to single-service monitoring",
+    ],
+    realWorld:"Honeycomb's research found teams with high observability resolve incidents 50% faster and experience 40% fewer repeat incidents — compounding into significantly less total downtime over time.",
+    practical:"Users report slow checkouts. The engineer opens a trace, sees 94% of latency in a call to the inventory service, correlates with a deployment 20 minutes ago, and rolls back the specific service in 7 minutes — without touching anything else.",
+    question:"During your last production incident, how long did it take to identify the root cause?" },
+
+  { id:"P18", sprint:5, sprintName:"Stability War", category:"cicd",
+    practice:"GitOps / Infrastructure as Code", icon:"🔄", title:"GitOps and Declarative Infrastructure",
+    body:"GitOps means managing infrastructure through Git as the single source of truth. The desired state of every system is declared in code, reviewed via pull request, and automatically reconciled by an agent. Configuration drift — the gap between what your system should be and what it is — becomes visible and automatically correctable.",
+    benefits:[
+      "Configuration drift is detected and corrected automatically — no manual audits",
+      "Every infrastructure change is reviewed, versioned, and instantly reversible",
+      "Eliminates the 'works on prod but not in staging' class of incident",
+      "Provides a complete, queryable history of every infrastructure change ever made",
+    ],
+    realWorld:"Weaveworks coined GitOps in 2017. Organisations adopting it consistently report fewer configuration-related incidents, faster MTTR, and dramatically improved audit trails.",
+    practical:"An engineer manually tweaks a Kubernetes resource limit directly on the cluster. ArgoCD detects the drift within 60 seconds, alerts the team, and reverts automatically. The correct fix goes through a reviewed PR.",
+    question:"Is your infrastructure's current state fully described in version-controlled code? Could you rebuild from scratch from that code alone?" },
+
+  { id:"P19", sprint:5, sprintName:"Stability War", category:"reliability",
+    practice:"Resilience Engineering", icon:"🧯", title:"Design for Failure",
+    body:"The question is not whether components will fail — it is when. Design every system assuming any component can fail at any time. Graceful degradation, circuit breakers, bulkheads, retry logic with exponential backoff, and timeout policies bound failure and make it recoverable.",
+    benefits:[
+      "Converts total outages into degraded-but-functional states users can tolerate",
+      "Circuit breakers prevent a struggling service from triggering a cascade",
+      "Bulkheads contain failure zones — one bad actor cannot consume all resources",
+      "Explicit failure handling makes on-call response predictable and procedural",
+    ],
+    realWorld:"AWS's cell-based architecture isolates failures to a defined blast radius. When one availability zone fails, it cannot propagate to adjacent cells — preventing numerous total regional outages from a single component failure.",
+    practical:"The recommendation engine goes down. Rather than an error, the product page falls back to a static 'popular items' cache. Conversion rate drops 4%. When recommendations recover, the fallback deactivates automatically. No incident declared.",
+    question:"For each critical dependency, can you describe exactly what your system does when that dependency becomes unavailable?" },
+
+  { id:"P20", sprint:5, sprintName:"Stability War", category:"platform",
+    practice:"Platform Engineering / Internal Developer Platforms", icon:"⚡", title:"The Deployment Pipeline is a Product",
+    body:"A slow, flaky deployment pipeline is a productivity tax paid on every feature, by every team, every day. Treating the pipeline as a product — with an owner, reliability targets, and a roadmap — compounds positively. A fast, reliable pipeline is a competitive advantage.",
+    benefits:[
+      "Faster pipelines directly increase deployment frequency across all product teams",
+      "Reliable pipelines remove the 'CI is broken again' drag on team morale",
+      "Every minute saved per build multiplies across every team and every deploy",
+      "A shared golden path reduces onboarding time for new engineers and new services",
+    ],
+    realWorld:"Spotify's 'Golden Path' initiative created standardised deployment paths for all product teams. Developer satisfaction and deployment frequency both increased significantly — the pipeline became an accelerator, not a bottleneck.",
+    practical:"The platform team notices the pipeline averages 38 minutes. They parallise test stages and cache artefacts in one sprint. Time drops to 11 minutes. Across 12 teams deploying twice daily, this returns 4+ hours of developer time per day.",
+    question:"How long does your deployment pipeline take? What is its reliability? Who owns improving it?" },
+
+  { id:"P21", sprint:6, sprintName:"Platform Maturity", category:"culture",
+    practice:"Engineering Effectiveness / DORA", icon:"🏆", title:"The Four Key DORA Metrics",
+    body:"DORA's four metrics reliably predict software delivery performance. Deployment Frequency: how often you ship. Lead Time for Changes: commit to production. Change Failure Rate: how often deployments cause incidents. Mean Time to Recovery: how quickly you restore service. Elite teams score highly on all four simultaneously.",
+    benefits:[
+      "Provides an objective, industry-benchmarked measure of engineering effectiveness",
+      "Reveals the specific bottleneck — is it lead time, frequency, or recovery?",
+      "Correlates directly with business outcomes including revenue growth and market share",
+      "Creates shared language between engineering and business leadership",
+    ],
+    realWorld:"The DORA State of DevOps report spans 10+ years and 33,000+ respondents. High performers are 2× more likely to exceed profitability and market share goals. DevOps is measurably a growth strategy.",
+    practical:"The team tracks DORA metrics on a shared dashboard. Lead Time has crept from 2 days to 9 days over three months. They trace it to a growing manual QA queue. Automated end-to-end tests return Lead Time to 2 days within six weeks.",
+    question:"Do you know your current Deployment Frequency, Lead Time, Change Failure Rate, and MTTR? Are they improving?" },
+
+  { id:"P22", sprint:6, sprintName:"Platform Maturity", category:"platform",
+    practice:"Internal Developer Platforms (IDPs)", icon:"🌱", title:"Platform Engineering Enables Scale",
+    body:"As organisations grow, the cognitive load of infrastructure, compliance, and deployment tooling becomes a drag on product velocity. Platform engineering solves this with self-service paved roads: standardised deployment paths, internal developer portals, and automated compliance guardrails.",
+    benefits:[
+      "Product teams ship faster by consuming platform capabilities without deep infra expertise",
+      "Standardisation reduces security and compliance variance across the estate",
+      "New engineers become productive in days, not weeks",
+      "Platform investment scales: one platform team enables tens of product teams",
+    ],
+    realWorld:"Spotify's Backstage became open source and is now used by Netflix, LinkedIn, and hundreds of others. Developers spend dramatically less time on infrastructure and more time delivering product value.",
+    practical:"A new engineer joins. Instead of a week reading wikis and asking Slack for help, they run one command that scaffolds a fully configured service — with CI, observability, and a first deployment — in 20 minutes.",
+    question:"How much time do your product engineers spend on infrastructure and tooling per week? What would they do with that time back?" },
+
+  { id:"P23", sprint:6, sprintName:"Platform Maturity", category:"data",
+    practice:"A/B Testing / Experimentation Platforms", icon:"🔬", title:"Continuous Experimentation",
+    body:"Mature product teams don't guess — they experiment. Feature flags enable A/B testing, multivariate experiments, and gradual rollouts that convert product decisions from opinions into evidence. This requires fast deployments, granular targeting, reliable measurement, and the cultural permission to run experiments that might fail.",
+    benefits:[
+      "Replaces opinion-driven decisions with statistically validated evidence",
+      "Reduces risk of large feature launches — test with 5% before 100%",
+      "Accelerates product learning — more experiments per quarter means faster improvement",
+      "Creates organisational alignment — results are objective, not political",
+    ],
+    realWorld:"Microsoft runs over 10,000 concurrent experiments. Booking.com runs more than 1,000. This scale of experimentation is only possible when the deployment pipeline was built for it from the ground up.",
+    practical:"The team debates two checkout button designs. They ship both 50/50. After 48 hours and 4,000 sessions, version B shows a statistically significant 6.2% higher conversion rate. Decision made. No meeting required.",
+    question:"How many experiments is your team running right now? What infrastructure would you need to run 10× more?" },
+
+  { id:"P24", sprint:6, sprintName:"Platform Maturity", category:"platform",
+    practice:"AI-Assisted Development / AIOps", icon:"🤖", title:"AI-Augmented Engineering",
+    body:"The frontier of DevOps is AI-augmented operations: anomaly detection that surfaces incidents before users notice, AI-assisted code review, automated root cause analysis, and predictive scaling. These capabilities compound on top of observability, automation, and clean architecture.",
+    benefits:[
+      "Detects incidents 10–20 minutes before users notice, reducing blast radius",
+      "AI code review catches security issues and regressions at merge time, not post-deploy",
+      "Automated root cause analysis reduces incident diagnosis from 30 minutes to seconds",
+      "Predictive scaling prevents resource exhaustion events before they occur",
+    ],
+    realWorld:"GitHub Copilot studies show 55% faster task completion. AIOps tools from Dynatrace and Datadog automatically correlate anomalies across thousands of metrics and identify root causes in seconds.",
+    practical:"At 3am, the AIOps layer detects anomalous memory growth 18 minutes before user impact. It correlates with a deployment from 6 hours earlier, pages on-call with a root cause hypothesis, and pre-populates the incident ticket.",
+    question:"Which operational tasks could AI meaningfully augment for your team? What foundations would need to be in place first?" },
+
+
+  { id:"P02", sprint:1, sprintName:"MVP Launch", category:"cicd",
+    practice:"CI/CD", icon:"🔁", title:"Continuous Integration from Day One",
+    body:"Merging code frequently into a shared branch and running automated tests prevents integration hell. Even a simple CI pipeline is not optional — it is the foundation for automated testing, deployment pipelines, security scanning, and quality gates.",
+    realWorld:"Teams practising CI merge multiple times per day. Teams without it often spend the last week of a sprint just getting diverged work to compile together — pure waste that compounds every release.",
+    practical:"A developer pushes a small auth fix. Within 90 seconds, CI runs 400 unit tests, a lint check, and a security scan. The build is green. They merge. No integration meeting. No 'it works on my machine'.",
+    question:"How often does your team merge to main? How long does it take to get feedback on a broken build?" },
+
+  { id:"P03", sprint:1, sprintName:"MVP Launch", category:"security",
+    practice:"DevSecOps / Shift Left", icon:"🛡", title:"Security is Not a Sprint",
+    body:"Security hardening retroactively is 10× more expensive than building it in. Shift-left means treating security as a continuous engineering discipline: rotate credentials, scan dependencies, enforce least-privilege, and run automated security tests in CI on every commit.",
+    realWorld:"Log4Shell (2021) exploited a dependency issue present in millions of projects. Organisations with automated SBOM scanning patched it in hours. Others took weeks — some were breached before they knew they were vulnerable.",
+    practical:"Every pull request automatically runs OWASP dependency-check. A developer adds a logging library with a known CVE. The pipeline blocks the merge and links to the remediation. The vulnerability never reaches production.",
+    question:"Does security sit at the end of your development process, or is it embedded from the first commit?" },
+
+  { id:"P04", sprint:1, sprintName:"MVP Launch", category:"observe",
+    practice:"Observability", icon:"📊", title:"If It Isn't Monitored, It Doesn't Exist",
+    body:"You cannot improve — or defend — what you cannot see. Logs, metrics, and traces from day one mean that when something breaks, you understand why. The three pillars: structured logs (what happened), metrics (how the system performs), distributed traces (where time is spent across services).",
+    realWorld:"The DORA research programme found elite teams restore service 2,604× faster than low performers. The single biggest differentiator is observability and automated alerting — not team size or budget.",
+    practical:"An API endpoint slows from 80ms to 3s. A Grafana alert fires within 60 seconds. The engineer opens a trace and sees 95% of time is in a single database call. The index is added and deployed within the hour.",
+    question:"If your most critical service started failing silently right now, how long before anyone noticed?" },
+
+  // ══ SPRINT 2 — EARLY GROWTH ════════════════════════════════════════════════
+  { id:"P05", sprint:2, sprintName:"Early Growth", category:"culture",
+    practice:"Technical Debt Management", icon:"🔧", title:"Technical Debt is a Business Risk",
+    body:"Debt isn't just slow code — it is slow teams, brittle deploys, burnt-out engineers, and features that take weeks instead of days. Every sprint you ignore it, the interest compounds. Track it explicitly, prioritise it against features, and pay it down deliberately.",
+    realWorld:"Stripe intentionally allocates 30% of engineering time to debt reduction. Teams that don't do this create a self-reinforcing spiral: features become harder to ship, engineers burn out, and eventually the system stops evolving.",
+    practical:"Each sprint, the team's board has a fixed 'debt lane' — 20% of capacity. This week: extract a tangled billing module into a clean service. Next sprint, adding the new pricing model takes two days instead of two weeks.",
+    question:"How do you track technical debt? Is it on the backlog with business justification, or invisible until it causes a crisis?" },
+
+  { id:"P06", sprint:2, sprintName:"Early Growth", category:"cicd",
+    practice:"Continuous Delivery / Trunk-Based Development", icon:"🔁", title:"Feedback Loops Must Be Short",
+    body:"The longer it takes to discover a change broke something, the more expensive the fix. Automated tests, feature flags, canary deployments, and staged rollouts compress the feedback window from days to minutes. Trunk-based development — everyone merging to main daily — is the prerequisite.",
+    realWorld:"Netflix deploys hundreds of times per day. A problematic release reaches 1% of users before full rollout — a near-instant feedback loop that bounds the blast radius of any mistake.",
+    practical:"A new recommendations algorithm ships behind a feature flag to 2% of traffic. Engagement metrics drop 8% in that cohort. The flag is turned off within 20 minutes. Zero rollback ceremony. Zero user impact at scale.",
+    question:"How long from code commit to knowing whether it broke something in production?" },
+
+  { id:"P07", sprint:2, sprintName:"Early Growth", category:"reliability",
+    practice:"Capacity Planning / Performance Engineering", icon:"📈", title:"Design for Load Before You Need It",
+    body:"Viral moments don't announce themselves. Load testing, horizontal scaling strategies, auto-scaling policies, and caching layers are investments that pay off exactly once — in the moment everything is on the line.",
+    realWorld:"The 2018 FIFA World Cup streaming service suffered massive outages because load testing had not kept pace with actual growth projections. Brand damage and subscriber losses lasted far beyond the incident.",
+    practical:"Every sprint, the team runs a 30-minute load test at 10× current peak. Auto-scaling triggers are tuned. This week they discover their session store saturates at 8× — they switch to Redis Cluster before it ever becomes a user problem.",
+    question:"What is the maximum load your system has been tested against? How does that compare to a realistic peak scenario?" },
+
+  { id:"P08", sprint:2, sprintName:"Early Growth", category:"culture",
+    practice:"Incident Review Culture", icon:"🤝", title:"Blameless Post-Mortems",
+    body:"When incidents happen, the goal is systemic learning — not punishment. A blameless culture means engineers report honestly, systemic causes get fixed, and failures don't repeat. Blame culture hides problems until they become catastrophic.",
+    realWorld:"Google's SRE handbook mandates blameless post-mortems. Their core finding: incidents are almost always systemic — wrong incentives, missing tooling, unclear processes — not individual incompetence.",
+    practical:"A misconfigured deployment causes 40 minutes of downtime. The post-mortem produces three action items: add a config validation step to CI, create a deployment checklist, and improve the rollback runbook. The engineer is not named in the report.",
+    question:"After your last incident, did the post-mortem result in systemic changes, or in someone being held accountable?" },
+
+  // ══ SPRINT 3 — SCALE-UP ════════════════════════════════════════════════════
+  { id:"P09", sprint:3, sprintName:"Scale-Up", category:"platform",
+    practice:"Infrastructure as Code / Toil Reduction", icon:"🏗", title:"Automate Everything That Hurts",
+    body:"Toil is repetitive, manual, automatable operational work that scales with load rather than with engineering investment. Every manual deployment, manual scaling action, and manual config change is a reliability risk and a productivity drain. If a human must do it repeatedly, it is toil.",
+    realWorld:"Google's SRE teams operate under a formal 50% toil cap. If operational toil exceeds half of engineering time, the team stops feature work and invests in automation until the cap is restored — enforced policy, not aspiration.",
+    practical:"The ops team used to manually provision test environments — 45 minutes per request, 8 requests a week. They spent one sprint writing a Terraform module. Now engineers self-serve a full environment in 4 minutes via a Slack command.",
+    question:"What percentage of your team's time last week was spent on repetitive manual operations that could be automated?" },
+
+  { id:"P10", sprint:3, sprintName:"Scale-Up", category:"reliability",
+    practice:"Chaos Engineering / Feature Flags", icon:"🧪", title:"Test in Production (Safely)",
+    body:"Resilience cannot be proven in staging — it must be demonstrated under real production conditions. Chaos engineering deliberately introduces controlled failures to verify that resilience mechanisms actually work. Feature flags limit blast radius on every release.",
+    realWorld:"Netflix's Chaos Monkey — which randomly terminates production instances — has been running since 2011. Teams running chaos experiments have dramatically lower MTTR when real failures occur because the muscle memory is already there.",
+    practical:"Every Tuesday, the team runs a 'game day': they kill one random microservice in production during business hours. On-call engineers respond as if it were real. This week they discover their circuit breaker timeout was misconfigured. Fixed in 20 minutes.",
+    question:"Have you ever deliberately killed a production service to verify your failover works? Would you be confident to?" },
+
+  { id:"P11", sprint:3, sprintName:"Scale-Up", category:"reliability",
+    practice:"Microservices / Event-Driven Architecture", icon:"🔗", title:"Decouple to Survive",
+    body:"Tight coupling is the root cause of cascading failures. When services share state or deploy together, one failure becomes many. Loose coupling — through message queues, circuit breakers, and independent deployment — means failures stay contained.",
+    realWorld:"Amazon's 2002 Bezos API mandate — all teams expose capabilities through service interfaces, no exceptions — created the architectural foundation for AWS. The decoupling enforced by that decision became a $90B cloud business.",
+    practical:"The email service goes down. Because order confirmation emails are sent via an async queue, the checkout flow continues working. The queue builds up. When email recovers, it drains the backlog. Customers get their emails 45 minutes late. No one loses their order.",
+    question:"If your most critical downstream service went down right now, how many user-facing features would fail with it?" },
+
+  { id:"P12", sprint:3, sprintName:"Scale-Up", category:"observe",
+    practice:"Site Reliability Engineering (SRE)", icon:"📉", title:"SLOs, SLIs and Error Budgets",
+    body:"How much downtime is acceptable? Define it. Measure it. An error budget is the gap between 100% and your SLO — it's the team's licence to take risk. Burn the budget too fast and stability work takes priority over features, automatically, by policy, without debate.",
+    realWorld:"Google's SRE model introduced error budgets to eliminate the Dev/Ops conflict. When the budget is spent, everyone agrees on the priority — without politics. When it is healthy, teams have licence to ship fast.",
+    practical:"The team's SLO is 99.5% availability. This month they've used 80% of their error budget by the 20th. The next planned deployment is paused. The team spends the remaining days fixing flaky tests and stabilising the deploy process. Next month the budget is healthy again.",
+    question:"Do you have explicit uptime targets? Does your team know the current error budget balance?" },
+
+  // ══ SPRINT 4 — ENTERPRISE PUSH ════════════════════════════════════════════
+  { id:"P13", sprint:4, sprintName:"Enterprise Push", category:"security",
+    practice:"Policy as Code / Automated Compliance", icon:"📋", title:"Compliance as Code",
+    body:"Manual compliance audits are slow, error-prone, and don't scale. When compliance controls are codified as policy, they run automatically on every deployment. Evidence is generated continuously as a by-product of normal operations — not assembled under pressure before an audit.",
+    realWorld:"HashiCorp Sentinel and Open Policy Agent (OPA) let teams encode compliance rules in CI/CD pipelines. Organisations using this have reduced audit preparation time from weeks to hours — the evidence trail was being written all along.",
+    practical:"A developer tries to deploy a container running as root. The OPA policy in the pipeline blocks the deployment with a clear error message and link to the hardening guide. The fix takes 5 minutes. The compliance log records the event automatically.",
+    question:"How long would it take your team to produce compliance evidence for a surprise audit?" },
+
+  { id:"P14", sprint:4, sprintName:"Enterprise Push", category:"security",
+    practice:"Zero Trust Security", icon:"🔐", title:"Zero Trust Architecture",
+    body:"Never trust, always verify. In a Zero Trust model, nothing inside or outside the network is trusted by default. Every access request is authenticated and authorised. Network location is not a security boundary — identity is. This limits blast radius when credentials are compromised.",
+    realWorld:"Google's BeyondCorp initiative, launched after the Aurora breach in 2009, moved all access controls from network perimeters to identity-based verification. It became the blueprint for Zero Trust architecture across the industry.",
+    practical:"An engineer's laptop is compromised. Because every internal service requires a valid short-lived token from the identity provider — regardless of network location — the attacker cannot pivot. The blast radius is limited to the engineer's own permissions, not the entire VPN subnet.",
+    question:"If an attacker obtained valid credentials for one service, how far could they move through your system?" },
+
+  { id:"P15", sprint:4, sprintName:"Enterprise Push", category:"observe",
+    practice:"Observability / Compliance", icon:"🗂", title:"Immutable Audit Trails",
+    body:"Who changed what, when, and why? Centralised, tamper-evident logging captures every access, deployment, and configuration change. This serves three purposes: debugging mysterious incidents, demonstrating compliance to regulators, and detecting security breaches.",
+    realWorld:"GDPR requires organisations to demonstrate lawful processing of personal data on demand. Without comprehensive, immutable audit logs this is impossible. Fines reach 4% of global annual revenue — ignorance is not a defence.",
+    practical:"A regulator asks: 'Who accessed customer records between March 1–15?' The compliance team runs a single query against the centralised audit log and produces a signed export in 8 minutes. No incident. No scramble. The answer was always there.",
+    question:"Are your audit logs centralised, tamper-evident, and retained for the period required by your obligations?" },
+
+  { id:"P16", sprint:4, sprintName:"Enterprise Push", category:"culture",
+    practice:"Inclusive Design / Compliance", icon:"♿", title:"Accessibility is Not Optional",
+    body:"WCAG 2.1 AA is a legal requirement in the EU, UK, US, and most major markets. Accessible systems are better engineered: cleaner semantic structure, more robust, serving a broader user base. Retrofitting accessibility is 5–10× more expensive than building it in.",
+    realWorld:"Domino's Pizza lost a landmark US Supreme Court case in 2019, establishing that digital products must comply with ADA requirements. The EU's European Accessibility Act, enforced from 2025, applies this standard across all EU digital products.",
+    practical:"Every component in the design system is built with axe-core automated tests and keyboard navigation as acceptance criteria. A new modal is flagged in CI for missing focus trapping. It is fixed before the PR merges — not in a post-launch audit six months later.",
+    question:"When did you last test your product with a screen reader? Is accessibility part of your definition of done?" },
+
+  // ══ SPRINT 5 — STABILITY WAR ══════════════════════════════════════════════
+  { id:"P17", sprint:5, sprintName:"Stability War", category:"observe",
+    practice:"Distributed Tracing / Observability", icon:"📡", title:"Observability is Not Monitoring",
+    body:"Monitoring tells you something is wrong. Observability tells you why. In a complex distributed system, dashboards show symptoms without revealing causes. Observability — correlated logs, metrics, and distributed traces — lets engineers ask arbitrary questions about system state they didn't know to ask before the incident.",
+    realWorld:"Honeycomb's research found teams with high observability resolve incidents 50% faster and experience 40% fewer repeat incidents. Faster resolution means less user impact; fewer repeats means time for improvement, not firefighting.",
+    practical:"Users report slow checkouts. The engineer opens a distributed trace, sees 94% of the latency in a call to the inventory service, correlates with a deployment 20 minutes ago, and rolls back the specific service in 7 minutes — without touching anything else.",
+    question:"During your last production incident, how long did it take to identify the root cause?" },
+
+  { id:"P18", sprint:5, sprintName:"Stability War", category:"cicd",
+    practice:"GitOps / Infrastructure as Code", icon:"🔄", title:"GitOps and Declarative Infrastructure",
+    body:"GitOps means managing infrastructure through Git as the single source of truth. The desired state of every system is declared in code, reviewed via pull request, and automatically reconciled by an agent. Configuration drift — the gap between what your system should be and what it is — becomes visible and automatically correctable.",
+    realWorld:"Weaveworks coined GitOps in 2017. Organisations adopting it consistently report fewer configuration-related incidents, faster MTTR, and dramatically improved audit trails — every infrastructure change is a reviewed, versioned commit.",
+    practical:"An engineer manually tweaks a Kubernetes resource limit directly on the cluster. The GitOps agent (ArgoCD) detects the drift within 60 seconds, alerts the team, and reverts the change automatically. The correct fix goes through a PR with review.",
+    question:"Is your infrastructure's current state fully described in version-controlled code? Could you rebuild from scratch from that code alone?" },
+
+  { id:"P19", sprint:5, sprintName:"Stability War", category:"reliability",
+    practice:"Resilience Engineering", icon:"🧯", title:"Design for Failure",
+    body:"The question is not whether components will fail — it is when. Design every system assuming any component can fail at any time. Graceful degradation, circuit breakers, bulkheads, retry logic with exponential backoff, and timeout policies bound failure and make it recoverable.",
+    realWorld:"AWS's cell-based architecture isolates failures to a defined blast radius. When one availability zone fails, it cannot propagate to adjacent cells — a design decision that has prevented numerous total regional outages from a single component failure.",
+    practical:"The recommendation engine goes down. Rather than showing an error, the product page falls back to a static 'popular items' list sourced from a cache. Conversion rate drops 4%. When recommendations recover, the fallback deactivates automatically. No incident declared.",
+    question:"For each critical dependency, can you describe exactly what your system does when that dependency becomes unavailable?" },
+
+  { id:"P20", sprint:5, sprintName:"Stability War", category:"platform",
+    practice:"Platform Engineering / Internal Developer Platforms", icon:"⚡", title:"The Deployment Pipeline is a Product",
+    body:"A slow, flaky deployment pipeline is a productivity tax paid on every feature, by every team, every day. Treating the pipeline as a product — with an owner, reliability targets, and a roadmap — compounds positively. A fast, reliable pipeline is a competitive advantage.",
+    realWorld:"Spotify's 'Golden Path' initiative created standardised, high-quality deployment paths for all product teams. Both developer satisfaction and deployment frequency increased significantly — the pipeline became an accelerator, not a bottleneck.",
+    practical:"The platform team notices the pipeline averages 38 minutes. They invest one sprint parallelising test stages and caching build artefacts. Pipeline time drops to 11 minutes. Across 12 product teams deploying twice daily, this returns 4+ hours of developer time per day.",
+    question:"How long does your deployment pipeline take? What is its reliability? Who owns improving it?" },
+
+  // ══ SPRINT 6 — PLATFORM MATURITY ══════════════════════════════════════════
+  { id:"P21", sprint:6, sprintName:"Platform Maturity", category:"culture",
+    practice:"Engineering Effectiveness / DORA", icon:"🏆", title:"The Four Key DORA Metrics",
+    body:"DORA's four metrics reliably predict software delivery performance. Deployment Frequency: how often you ship. Lead Time for Changes: commit to production. Change Failure Rate: how often deployments cause incidents. Mean Time to Recovery: how quickly you restore service. Elite teams score highly on all four simultaneously — speed and stability are correlated, not opposed.",
+    realWorld:"The DORA State of DevOps report spans 10+ years and 33,000+ respondents. High performers are 2× more likely to exceed profitability and market share goals. DevOps investment is measurably a growth strategy.",
+    practical:"The team tracks DORA metrics on a shared dashboard. Lead Time has crept from 2 days to 9 days over three months. They trace it to a growing manual QA queue. They invest in automated end-to-end tests. Lead Time returns to 2 days within six weeks.",
+    question:"Do you know your current Deployment Frequency, Lead Time, Change Failure Rate, and MTTR? Are they improving?" },
+
+  { id:"P22", sprint:6, sprintName:"Platform Maturity", category:"platform",
+    practice:"Internal Developer Platforms (IDPs)", icon:"🌱", title:"Platform Engineering Enables Scale",
+    body:"As organisations grow, the cognitive load of infrastructure, compliance, and deployment tooling becomes a drag on product velocity. Platform engineering solves this with self-service paved roads: standardised deployment paths, internal developer portals, and automated compliance guardrails.",
+    realWorld:"Spotify's Backstage became open source and is now used by Netflix, LinkedIn, and hundreds of others. The core value: developers spend dramatically less time on infrastructure and more time delivering product value.",
+    practical:"A new engineer joins. Instead of spending their first week getting local dev working, reading 12 wiki pages, and asking Slack for help, they run one command that scaffolds a fully configured service — with CI, observability, and a first deployment — in 20 minutes.",
+    question:"How much time do your product engineers spend on infrastructure and tooling per week? What would they do with that time back?" },
+
+  { id:"P23", sprint:6, sprintName:"Platform Maturity", category:"data",
+    practice:"A/B Testing / Experimentation Platforms", icon:"🔬", title:"Continuous Experimentation",
+    body:"Mature product teams don't guess — they experiment. Feature flags enable A/B testing, multivariate experiments, and gradual rollouts that convert product decisions from opinions into evidence. This requires fast deployments, granular targeting, reliable measurement, and the cultural permission to run experiments that might fail.",
+    realWorld:"Microsoft runs over 10,000 concurrent experiments across its products. Booking.com runs more than 1,000. This scale of experimentation is only possible when infrastructure was built to support it from the ground up.",
+    practical:"The team debates two checkout button designs. Instead of a meeting, they ship both behind a flag, 50/50 split. After 48 hours and 4,000 sessions, version B shows a statistically significant 6.2% higher conversion rate. Decision made. Evidence-based. No HIPPO required.",
+    question:"How many experiments is your team running right now? What infrastructure would you need to run 10× more?" },
+
+  { id:"P24", sprint:6, sprintName:"Platform Maturity", category:"platform",
+    practice:"AI-Assisted Development / AIOps", icon:"🤖", title:"AI-Augmented Engineering",
+    body:"The frontier of DevOps is AI-augmented operations: anomaly detection that surfaces incidents before users notice, AI-assisted code review, automated root cause analysis, and predictive scaling. These capabilities compound on top of observability, automation, and clean architecture — which is why foundations determine the ceiling of what is possible.",
+    realWorld:"GitHub Copilot studies show 55% faster task completion. AIOps tools from Dynatrace and Datadog automatically correlate anomalies across thousands of metrics and identify root causes in seconds — a task that previously took a senior engineer 30 minutes.",
+    practical:"At 3am, the AIOps layer detects an anomalous memory growth pattern across a service cluster — 18 minutes before the first user would notice. It correlates with a deployment from 6 hours earlier, pages the on-call engineer with a root cause hypothesis, and pre-populates the incident ticket.",
+    question:"Which operational tasks could AI meaningfully augment for your team? What foundations would need to be in place first?" },
+
+];
+
+const CAT_LABELS = {
+  culture:"Culture & Process", cicd:"CI/CD & Delivery", security:"Security",
+  observe:"Observability", reliability:"Reliability & SRE",
+  platform:"Platform Engineering", data:"Data & Experimentation",
+};
+const CAT_COLORS = {
+  culture:"#00ff9d", cicd:"#4dc3ff", security:"#ff4d6d",
+  observe:"#b47dff", reliability:"#ffb800", platform:"#ff9f43", data:"#5fffca",
+};
+
+let filteredCards = [...CARDS];
+let currentIndex = 0;
+let activeFilter = "all";
+
+function renderCard(card) {
+  return `
+  <div class="card ${card.category}">
+    <div class="card-stripe"></div>
+    <div class="card-meta">
+      <div class="category-badge">${CAT_LABELS[card.category].toUpperCase()}</div>
+      <div class="sprint-badge">SPRINT ${card.sprint} · ${card.sprintName.toUpperCase()}</div>
+    </div>
+    <div class="card-icon-area"><span class="card-icon">${card.icon}</span></div>
+    <div class="card-practice"><span>${card.practice.toUpperCase()}</span></div>
+    <div class="card-title">${card.title}</div>
+    <div class="card-divider"></div>
+    <div class="card-body">
+      <div class="card-body-text">${card.body}</div>
+      <div class="card-benefits">
+        <div class="benefits-label">⚡ KEY BENEFITS</div>
+        <ul class="benefits-list">${card.benefits.map(b => `<li>${b}</li>`).join('')}</ul>
+      </div>
+      <div class="card-boxes">
+        <div class="card-box">
+          <div class="box-label">🌍 REAL-WORLD EXAMPLE</div>
+          <div class="box-text">${card.realWorld}</div>
+        </div>
+        <div class="card-box">
+          <div class="box-label">🔧 PRACTICAL EXAMPLE</div>
+          <div class="box-text">${card.practical}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="card-footer-left">
+        <div class="card-question-label">💬 REFLECTION QUESTION</div>
+        <div class="card-question">${card.question}</div>
+      </div>
+      <div class="card-logo">${XEBIA_SVG}</div>
+    </div>
+    <div class="card-id">DOD·${card.id}</div>
+  </div>`;
+}
+
+function updateDisplay() {
+  const stage = document.getElementById("cardStage");
+  const card = filteredCards[currentIndex];
+  if (!card) {
+    stage.innerHTML = '<div style="color:#2a4a38;text-align:center;padding-top:200px;font-family:Space Mono,monospace;font-size:12px;">No cards match this filter.</div>';
+    return;
+  }
+  stage.innerHTML = renderCard(card);
+  document.getElementById("counter").textContent =
+    `CARD ${currentIndex + 1} OF ${filteredCards.length}  ·  USE ← → ARROW KEYS`;
+  document.getElementById("prevBtn").disabled = currentIndex === 0;
+  document.getElementById("nextBtn").disabled = currentIndex === filteredCards.length - 1;
+}
+
+function navigate(dir) {
+  currentIndex = Math.max(0, Math.min(filteredCards.length - 1, currentIndex + dir));
+  updateDisplay();
+}
+
+function buildFilterBar() {
+  const filters = [
+    { key:"all", label:"ALL 24 CARDS" },
+    { key:"sprint:1", label:"🟢 S1 MVP" },
+    { key:"sprint:2", label:"🔵 S2 GROWTH" },
+    { key:"sprint:3", label:"🟡 S3 SCALE" },
+    { key:"sprint:4", label:"🟣 S4 ENTERPRISE" },
+    { key:"sprint:5", label:"🔴 S5 STABILITY" },
+    { key:"sprint:6", label:"🟠 S6 MATURITY" },
+    { key:"cat:culture",     label:"Culture" },
+    { key:"cat:cicd",        label:"CI/CD" },
+    { key:"cat:security",    label:"Security" },
+    { key:"cat:observe",     label:"Observability" },
+    { key:"cat:reliability", label:"Reliability" },
+    { key:"cat:platform",    label:"Platform" },
+  ];
+  document.getElementById("filterBar").innerHTML = filters.map(f => `
+    <button class="filter-btn ${f.key === activeFilter ? "active" : ""}"
+      onclick="setFilter('${f.key}')"
+      style="${f.key.startsWith('cat:') ? `border-color:${CAT_COLORS[f.key.slice(4)]}33;` : ''}">
+      ${f.label}
+    </button>`).join("");
+}
+
+function setFilter(key) {
+  activeFilter = key;
+  if (key === "all") filteredCards = [...CARDS];
+  else if (key.startsWith("sprint:")) filteredCards = CARDS.filter(c => c.sprint === parseInt(key.slice(7)));
+  else if (key.startsWith("cat:")) filteredCards = CARDS.filter(c => c.category === key.slice(4));
+  currentIndex = 0;
+  buildFilterBar();
+  updateDisplay();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === "ArrowDown") navigate(1);
+  if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   navigate(-1);
+});
+
+buildFilterBar();
+updateDisplay();
+</script>
+</body>
+</html>
