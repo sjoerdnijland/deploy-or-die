@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deploy or Die — Round Overview</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #e8e4de;
+  font-family: 'Inter', sans-serif;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 16px 60px; gap: 32px;
+}
+
+/* ── SHARED ── */
+.stripe {
+  height: 5px; width: 100%;
+  background: repeating-linear-gradient(90deg,
+    #1a1a1a 0px,#1a1a1a 18px,#00c873 18px,#00c873 36px,
+    #ff4d6d 36px,#ff4d6d 54px,#4dc3ff 54px,#4dc3ff 72px,
+    #ffb800 72px,#ffb800 90px,#b47dff 90px,#b47dff 108px,
+    #ff9f43 108px,#ff9f43 126px,#ff6eb4 126px,#ff6eb4 144px);
+}
+
+/* ══════════════════════════════════════════════════
+   PAGE 1 — A5 ROUND REFERENCE CARD
+   ══════════════════════════════════════════════════ */
+
+
+
+
+.card-sub { font-family: 'Space Mono', monospace; font-size: 7px; letter-spacing: 2px; color: #555; margin-top: 2px; }
+.xebia { opacity: 0.35; }
+
+
+
+/* Phase bar */
+
+
+.phase-pill strong { display: block; color: #333; font-size: 7.5px; }
+
+/* Step block */
+
+
+.step-row:last-child { border-bottom: none; }
+.step-icon-col {
+  width: 34px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 8px 4px; background: #f8f8f8; border-right: 1px solid #eee;
+  gap: 2px;
+}
+
+
+
+
+
+.step-desc strong { color: #111; font-weight: 700; }
+.step-desc em { color: #666; font-style: italic; }
+
+/* Highlight steps */
+.step-row.discuss .step-icon-col { background: #f0fff8; border-right-color: #c0e8d0; }
+.step-row.discuss { border-color: #c0e8d0; }
+.step-row.reveal  .step-icon-col { background: #fff8f0; border-right-color: #f0d8b0; }
+.step-row.retro   .step-icon-col { background: #f5f0ff; border-right-color: #d8c8f8; }
+.step-row.retro   { border-bottom: none; }
+
+/* Notes box */
+
+.note-box strong { color: #333; }
+
+/* Card footer */
+
+.footer-text { font-family: 'Space Mono', monospace; font-size: 6.5px; color: #555; letter-spacing: 1px; }
+
+
+/* ══════════════════════════════════════════════════
+   PAGE 2 — A4 ROUND OVERVIEW (GM reference)
+   ══════════════════════════════════════════════════ */
+.page-a4 {
+  width: 210mm; min-height: 297mm;
+  background: #fff;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.14);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  page-break-after: always;
+}
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px 11px; background: #1a1a1a; border-bottom: 2px solid #1a1a1a;
+}
+.page-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 5px; color: #00ff9d; line-height: 1; }
+.page-sub { font-family: 'Space Mono', monospace; font-size: 7.5px; letter-spacing: 2px; color: #555; margin-top: 3px; }
+
+/* 2×3 grid of round panels */
+.rounds-grid {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 0;
+}
+.round-panel {
+  padding: 11px 14px; border-right: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.round-panel:nth-child(2n) { border-right: none; }
+.round-panel:nth-child(5), .round-panel:nth-child(6) { border-bottom: none; }
+
+.rp-header {
+  display: flex; align-items: baseline; gap: 8px; padding-bottom: 5px;
+  border-bottom: 2px solid #1a1a1a;
+}
+.rp-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px;
+  color: #1a1a1a; line-height: 1;
+}
+.rp-name { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: 2px; color: #555; }
+.rp-tokens {
+  margin-left: auto; font-family: 'Space Mono', monospace; font-size: 8px;
+  font-weight: 700; color: #fff; background: #1a1a1a;
+  padding: 2px 7px; border-radius: 4px;
+}
+
+.rp-sub { font-family: 'Space Mono', monospace; font-size: 6.5px; letter-spacing: 1.5px; font-weight: 700; color: #888; margin-bottom: 2px; }
+
+/* Card rows */
+.card-rows { display: flex; flex-direction: column; gap: 2px; }
+.card-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 7.5px; line-height: 1.5; color: #333; padding: 1px 0;
+}
+.card-id {
+  font-family: 'Space Mono', monospace; font-size: 6.5px; font-weight: 700;
+  min-width: 30px; color: #fff; border-radius: 3px; padding: 1px 4px;
+  text-align: center; flex-shrink: 0;
+}
+.card-id.sec   { background: #cc1a3a; }
+.card-id.stab  { background: #1a7acc; }
+.card-id.perf  { background: #b85c00; }
+.card-id.comp  { background: #6b1ecc; }
+.card-id.td    { background: #8a5e00; }
+.card-id.opp   { background: #006b3c; }
+.card-id.prin  { background: #1a1a1a; }
+
+.card-title-text { color: #333; }
+.new-badge {
+  font-family: 'Space Mono', monospace; font-size: 5.5px;
+  background: #f0fff8; color: #006b3c; border: 1px solid #b0e8cc;
+  border-radius: 3px; padding: 1px 4px; flex-shrink: 0;
+}
+
+/* Principles in round panel */
+.prin-rows { display: flex; flex-direction: column; gap: 2px; }
+.prin-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 7.5px; color: #333; line-height: 1.5;
+}
+
+/* Page footer */
+.page-footer {
+  padding: 7px 20px; background: #1a1a1a;
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1.5px solid #1a1a1a;
+}
+.page-footer-text { font-family: 'Space Mono', monospace; font-size: 7px; color: #555; letter-spacing: 1px; }
+
+/* Print */
+@media print {
+  body { background: white; padding: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+  
+  .page-a4 { box-shadow: none; width: 210mm; min-height: 297mm; }
+}
+@page { margin: 0; }
+@page { size: A4 portrait; margin: 0; }
+</style>
+</head>
+<body>
+<!-- ══ PAGE 2: A4 ROUND-BY-ROUND OVERVIEW ════════════════════════════════════ -->
+<div class="page-a4">
+  <div class="stripe"></div>
+  <div class="page-header">
+    <div>
+      <div class="page-title">ROUND-BY-ROUND OVERVIEW</div>
+      <div class="page-sub">GAME MASTER REFERENCE · PRE-SORT CARD DECKS PER ROUND BEFORE PLAY</div>
+    </div>
+    <svg class="xebia" width="48" height="16" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V62.56ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+      <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+    </svg>
+  </div>
+
+  <div class="rounds-grid">
+
+    <!-- ROUND 1 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R1</div>
+        <div class="rp-name">MVP LAUNCH</div>
+        <div class="rp-tokens">8T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 3)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id sec">S1</span><span class="card-title-text">Zero-Day in the Wild</span></div>
+          <div class="card-row"><span class="card-id sec">S2</span><span class="card-title-text">Credential Stuffing Wave</span></div>
+          <div class="card-row"><span class="card-id sec">S3</span><span class="card-title-text">Rogue Dependency</span></div>
+          <div class="card-row"><span class="card-id sec">S5</span><span class="card-title-text">API Key Leaked to GitHub</span></div>
+          <div class="card-row"><span class="card-id stab">ST1</span><span class="card-title-text">Cascading Service Failure</span></div>
+          <div class="card-row"><span class="card-id stab">ST3</span><span class="card-title-text">Memory Leak Snowball</span></div>
+          <div class="card-row"><span class="card-id stab">ST4</span><span class="card-title-text">Deployment Rollback Crisis</span></div>
+          <div class="card-row"><span class="card-id perf">P1</span><span class="card-title-text">Viral Traffic Surge</span></div>
+          <div class="card-row"><span class="card-id perf">P2</span><span class="card-title-text">Slow API Under Load</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O4</span><span class="card-title-text">Acquire a Competitor's Users</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P01</span><span class="card-title-text">You Build It, You Run It</span></div>
+          <div class="card-row"><span class="card-id prin">P02</span><span class="card-title-text">Continuous Integration from Day One</span></div>
+          <div class="card-row"><span class="card-id prin">P03</span><span class="card-title-text">Security is Not a Sprint</span></div>
+          <div class="card-row"><span class="card-id prin">P04</span><span class="card-title-text">If It Isn't Monitored, It Doesn't Exist</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND 2 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R2</div>
+        <div class="rp-name">EARLY GROWTH</div>
+        <div class="rp-tokens">9T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 4) — adds new this round</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id stab">ST2</span><span class="card-title-text">Silent Data Corruption</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id stab">ST5</span><span class="card-title-text">Third-Party Outage Dependency</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id perf">P4</span><span class="card-title-text">CDN Misconfiguration</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id comp">C1</span><span class="card-title-text">Surprise Regulatory Audit</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id comp">C2</span><span class="card-title-text">Data Subject Access Request</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id td">TD1</span><span class="card-title-text">Velocity Collapse</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id td">TD3</span><span class="card-title-text">Test Suite Collapse</span><span class="new-badge">NEW</span></div>
+          <div class="card-row" style="opacity:0.55;"><span class="card-id sec">S1–S3,S5</span><span class="card-title-text">+ all R1 security / stability / perf</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O2</span><span class="card-title-text">Open Source Your Core</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id opp">O3</span><span class="card-title-text">Performance Benchmark Goes Viral</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id opp">O4</span><span class="card-title-text">Acquire a Competitor's Users</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P05</span><span class="card-title-text">Technical Debt is a Business Risk</span></div>
+          <div class="card-row"><span class="card-id prin">P06</span><span class="card-title-text">Feedback Loops Must Be Short</span></div>
+          <div class="card-row"><span class="card-id prin">P07</span><span class="card-title-text">Design for Load Before You Need It</span></div>
+          <div class="card-row"><span class="card-id prin">P08</span><span class="card-title-text">Blameless Post-Mortems</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND 3 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R3</div>
+        <div class="rp-name">SCALE-UP</div>
+        <div class="rp-tokens">10T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 5) — adds new this round</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id sec">S4</span><span class="card-title-text">Insider Threat Detected</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id perf">P3</span><span class="card-title-text">Database Query Explosion</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id comp">C3</span><span class="card-title-text">SOC 2 Audit Prep Demand</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id comp">C4</span><span class="card-title-text">Accessibility Lawsuit Filed</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id td">TD2</span><span class="card-title-text">On-Call Engineer Quits</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id td">TD5</span><span class="card-title-text">Documentation Desert</span><span class="new-badge">NEW</span></div>
+          <div class="card-row" style="opacity:0.55;"><span class="card-id stab" style="min-width:40px;">All prev.</span><span class="card-title-text">+ all eligible R1/R2 cards</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O1</span><span class="card-title-text">Fortune 500 Wants to Sign</span><span class="new-badge">NEW</span></div>
+          <div class="card-row"><span class="card-id opp">O2</span><span class="card-title-text">Open Source Your Core</span></div>
+          <div class="card-row"><span class="card-id opp">O3</span><span class="card-title-text">Performance Benchmark Goes Viral</span></div>
+          <div class="card-row"><span class="card-id opp">O4</span><span class="card-title-text">Acquire a Competitor's Users</span><span style="font-size:6.5px;color:#cc1a3a;margin-left:3px;">last round</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P09</span><span class="card-title-text">Automate Everything That Hurts</span></div>
+          <div class="card-row"><span class="card-id prin">P10</span><span class="card-title-text">Test in Production (Safely)</span></div>
+          <div class="card-row"><span class="card-id prin">P11</span><span class="card-title-text">Decouple to Survive</span></div>
+          <div class="card-row"><span class="card-id prin">P12</span><span class="card-title-text">SLOs, SLIs and Error Budgets</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND 4 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R4</div>
+        <div class="rp-name">ENTERPRISE PUSH</div>
+        <div class="rp-tokens">10T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 5) — adds new this round</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id td">TD4</span><span class="card-title-text">Monolith Deployment Gridlock</span><span class="new-badge">NEW</span></div>
+          <div class="card-row" style="opacity:0.55;"><span class="card-id stab" style="min-width:40px;">All prev.</span><span class="card-title-text">S4, P3, C3, C4, TD2, TD5 now eligible</span></div>
+          <div class="card-row" style="opacity:0.55;"><span class="card-id sec" style="min-width:40px;">Pool</span><span class="card-title-text">All S, ST, P, C, TD cards (except O4)</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O1</span><span class="card-title-text">Fortune 500 Wants to Sign</span></div>
+          <div class="card-row"><span class="card-id opp">O2</span><span class="card-title-text">Open Source Your Core</span></div>
+          <div class="card-row"><span class="card-id opp">O3</span><span class="card-title-text">Performance Benchmark Goes Viral</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P13</span><span class="card-title-text">Compliance as Code</span></div>
+          <div class="card-row"><span class="card-id prin">P14</span><span class="card-title-text">Zero Trust Architecture</span></div>
+          <div class="card-row"><span class="card-id prin">P15</span><span class="card-title-text">Immutable Audit Trails</span></div>
+          <div class="card-row"><span class="card-id prin">P16</span><span class="card-title-text">Accessibility is Not Optional</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND 5 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R5</div>
+        <div class="rp-name">STABILITY WAR</div>
+        <div class="rp-tokens">11T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 6) — full pool active</div>
+        <div class="card-rows">
+          <div class="card-row" style="opacity:0.65;"><span class="card-id sec" style="min-width:40px;">Pool</span><span class="card-title-text">All 24 incident cards now eligible</span></div>
+          <div class="card-row" style="opacity:0.65;"><span class="card-id td" style="min-width:40px;">Note</span><span class="card-title-text">TD4 only eligible from R4 onward</span></div>
+          <div class="card-row" style="opacity:0.65;"><span class="card-id opp" style="min-width:40px;">Note</span><span class="card-title-text">O4 no longer eligible this round</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O1</span><span class="card-title-text">Fortune 500 Wants to Sign</span></div>
+          <div class="card-row"><span class="card-id opp">O2</span><span class="card-title-text">Open Source Your Core</span></div>
+          <div class="card-row"><span class="card-id opp">O3</span><span class="card-title-text">Performance Benchmark Goes Viral</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P17</span><span class="card-title-text">Observability is Not Monitoring</span></div>
+          <div class="card-row"><span class="card-id prin">P18</span><span class="card-title-text">GitOps and Declarative Infrastructure</span></div>
+          <div class="card-row"><span class="card-id prin">P19</span><span class="card-title-text">Design for Failure</span></div>
+          <div class="card-row"><span class="card-id prin">P20</span><span class="card-title-text">The Deployment Pipeline is a Product</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROUND 6 -->
+    <div class="round-panel">
+      <div class="rp-header">
+        <div class="rp-num">R6</div>
+        <div class="rp-name">PLATFORM MATURITY</div>
+        <div class="rp-tokens">12T</div>
+      </div>
+      <div>
+        <div class="rp-sub">INCIDENT CARDS (draw 6) — full pool active</div>
+        <div class="card-rows">
+          <div class="card-row" style="opacity:0.65;"><span class="card-id sec" style="min-width:40px;">Pool</span><span class="card-title-text">All 24 incident cards eligible</span></div>
+          <div class="card-row" style="opacity:0.65;"><span class="card-id td" style="min-width:40px;">Tip</span><span class="card-title-text">Favour TD4 if tech debt is high — it lands hard</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">OPPORTUNITY CARDS (draw 1)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id opp">O1</span><span class="card-title-text">Fortune 500 Wants to Sign</span></div>
+          <div class="card-row"><span class="card-id opp">O2</span><span class="card-title-text">Open Source Your Core</span></div>
+          <div class="card-row"><span class="card-id opp">O3</span><span class="card-title-text">Performance Benchmark Goes Viral</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="rp-sub">PRINCIPLE CARDS (draw 1 for retro)</div>
+        <div class="card-rows">
+          <div class="card-row"><span class="card-id prin">P21</span><span class="card-title-text">The Four Key DORA Metrics</span></div>
+          <div class="card-row"><span class="card-id prin">P22</span><span class="card-title-text">Platform Engineering Enables Scale</span></div>
+          <div class="card-row"><span class="card-id prin">P23</span><span class="card-title-text">Continuous Experimentation</span></div>
+          <div class="card-row"><span class="card-id prin">P24</span><span class="card-title-text">AI-Augmented Engineering</span></div>
+        </div>
+      </div>
+      <div style="margin-top:auto;">
+        <div style="background:#f0fff8;border:1px solid #b0e8cc;border-radius:5px;padding:6px 8px;font-size:7px;line-height:1.6;color:#1a5c38;">
+          <strong>After R6:</strong> Final reveal → full breakdown screen per team → group debrief. Ask: <em>"What would you do differently from round 1 knowing what you know now?"</em>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="page-footer">
+    <div class="page-footer-text">DEPLOY OR DIE · XEBIA DEVOPS WORKSHOP · ROUND OVERVIEW</div>
+    <div class="page-footer-text">IDs: S=Security · ST=Stability · P=Performance · C=Compliance · TD=Tech Debt · O=Opportunity · P##=Principle</div>
+  </div>
+</div>
+
+</body>
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deploy or Die — Facilitator Timer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #080c10;
+  --surface: #0d1117;
+  --border: #1e2a1e;
+  --green: #00ff9d;
+  --green-dim: #00cc7a;
+  --amber: #ffb800;
+  --red: #ff4d6d;
+  --blue: #4dc3ff;
+  --purple: #b47dff;
+  --text: #e8e8e8;
+  --muted: #888;
+  --dim: #444;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 28px;
+  border-bottom: 1px solid #1a1a1a;
+  flex-shrink: 0;
+}
+.header-left { display: flex; align-items: baseline; gap: 12px; }
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 5px; color: var(--green); }
+.logo-sub { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 2px; color: var(--dim); }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.total-clock {
+  font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px;
+  color: var(--text); line-height: 1;
+}
+.total-label { font-family: 'Space Mono', monospace; font-size: 8px; color: var(--muted); letter-spacing: 2px; text-align: right; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  flex: 1; display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── LEFT: Programme schedule ── */
+.schedule {
+  border-right: 1px solid #1a1a1a;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 4px;
+}
+.schedule-title {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3px;
+  color: var(--muted); margin-bottom: 10px;
+}
+
+.prog-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent; transition: all 0.15s;
+}
+.prog-item:hover { background: rgba(255,255,255,0.03); }
+.prog-item.active {
+  background: rgba(0,255,157,0.07); border-color: rgba(0,255,157,0.25);
+}
+.prog-item.done { opacity: 0.4; }
+.prog-item.future { opacity: 0.55; }
+
+.prog-time {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--muted); min-width: 64px; flex-shrink: 0;
+}
+.prog-item.active .prog-time { color: var(--green); }
+.prog-icon { font-size: 14px; flex-shrink: 0; }
+.prog-info { flex: 1; min-width: 0; }
+.prog-name {
+  font-size: 11px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.prog-item.active .prog-name { color: var(--green); }
+.prog-dur {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 1px;
+}
+.prog-tick {
+  font-size: 12px; color: var(--green); flex-shrink: 0;
+  opacity: 0; transition: opacity 0.2s;
+}
+.prog-item.done .prog-tick { opacity: 1; }
+
+/* ── RIGHT: Active timer panel ── */
+.timer-panel {
+  display: flex; flex-direction: column;
+  padding: 24px 32px;
+  gap: 20px;
+}
+
+/* Phase banner */
+.phase-banner {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.phase-label {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 3px; color: var(--muted);
+}
+.phase-name {
+  font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 4px;
+  color: var(--text); line-height: 1;
+}
+.phase-desc { font-size: 13px; color: var(--muted); }
+
+/* Big timer */
+.big-timer-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px;
+  flex: 1;
+}
+.segment-label {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px;
+  color: var(--muted); text-align: center;
+}
+.segment-icon { font-size: 28px; line-height: 1; }
+.big-timer {
+  font-family: 'Bebas Neue', sans-serif; font-size: 110px; letter-spacing: 4px;
+  line-height: 1; color: var(--green);
+  transition: color 0.3s;
+  text-align: center;
+}
+.big-timer.amber { color: var(--amber); }
+.big-timer.red   { color: var(--red); animation: pulse 0.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+.segment-desc {
+  font-size: 14px; color: var(--muted); text-align: center;
+  max-width: 480px; line-height: 1.6;
+}
+
+/* Progress dots */
+.seg-dots {
+  display: flex; gap: 8px; align-items: center; justify-content: center;
+}
+.seg-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--dim); transition: all 0.2s;
+}
+.seg-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.seg-dot.done   { background: #2a4a38; }
+
+/* Controls */
+.controls {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.btn {
+  padding: 12px 28px; border-radius: 10px; border: none;
+  font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--green), var(--green-dim));
+  color: #080c10;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary {
+  background: rgba(255,255,255,0.06); border: 1px solid #2a2a2a;
+  color: var(--text);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.10); }
+.btn-danger {
+  background: rgba(255,77,109,0.12); border: 1px solid rgba(255,77,109,0.3);
+  color: var(--red);
+}
+.btn-danger:hover { background: rgba(255,77,109,0.2); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; filter: none; }
+
+/* Edit time modal */
+.edit-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted);
+}
+.edit-row input {
+  width: 54px; padding: 6px 8px; text-align: center;
+  background: #1a1a1a; border: 1px solid #333; border-radius: 6px;
+  color: var(--text); font-family: 'Space Mono', monospace; font-size: 16px;
+  font-weight: 700;
+}
+.edit-row input:focus { outline: none; border-color: var(--green); }
+.edit-hint { font-size: 10px; color: var(--dim); text-align: center; }
+
+/* Segment list below timer */
+.seg-list {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+}
+.seg-chip {
+  padding: 5px 12px; border-radius: 20px;
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px;
+  border: 1px solid #2a2a2a; color: var(--muted); background: transparent;
+  transition: all 0.15s; cursor: pointer;
+}
+.seg-chip:hover { border-color: #444; color: var(--text); }
+.seg-chip.active { border-color: var(--green); color: var(--green); background: rgba(0,255,157,0.07); }
+.seg-chip.done   { opacity: 0.4; }
+
+/* Next up bar */
+.next-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: rgba(255,255,255,0.03);
+  border: 1px solid #1a1a1a; border-radius: 10px;
+}
+.next-label { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--dim); letter-spacing: 2px; }
+.next-name { font-size: 12px; color: var(--muted); }
+
+/* ── FOOTER ── */
+.footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 28px; border-top: 1px solid #1a1a1a; flex-shrink: 0;
+}
+.footer-text { font-family: 'Space Mono', monospace; font-size: 8px; color: var(--dim); letter-spacing: 1.5px; }
+
+/* ── DONE OVERLAY ── */
+.done-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(8,12,16,0.95);
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; z-index: 100;
+}
+.done-overlay.show { display: flex; }
+.done-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 64px; letter-spacing: 8px;
+  color: var(--green); animation: glow 2s ease-in-out infinite;
+}
+@keyframes glow { 0%,100%{text-shadow:0 0 20px #00ff9d44} 50%{text-shadow:0 0 60px #00ff9d88} }
+.done-sub { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">DEPLOY OR DIE</div>
+    <div class="logo-sub">FACILITATOR TIMER · 4-ROUND EDITION</div>
+  </div>
+  <div class="header-right">
+    <div>
+      <div class="total-label">ELAPSED</div>
+      <div class="total-clock" id="totalClock">0:00</div>
+    </div>
+    <div>
+      <div class="total-label">SESSION END</div>
+      <div class="total-clock" id="endClock">2:00</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: Schedule -->
+  <div class="schedule">
+    <div class="schedule-title">PROGRAMME SCHEDULE</div>
+    <div id="progList"></div>
+  </div>
+
+  <!-- RIGHT: Active timer -->
+  <div class="timer-panel">
+    <div class="phase-banner">
+      <div class="phase-label" id="phaseLabel">SEGMENT</div>
+      <div class="phase-name" id="phaseName">READY TO START</div>
+      <div class="phase-desc" id="phaseDesc">Press START to begin the session</div>
+    </div>
+
+    <div class="big-timer-wrap">
+      <div class="segment-label" id="segLabel">——</div>
+      <div class="segment-icon" id="segIcon">⏱</div>
+      <div class="big-timer" id="bigTimer">0:00</div>
+      <div class="segment-desc" id="segDesc"></div>
+    </div>
+
+    <div class="seg-dots" id="segDots"></div>
+
+    <!-- Edit time (visible when paused) -->
+    <div class="edit-row" id="editRow" style="display:none;">
+      <span>SET TIME:</span>
+      <input type="number" id="editMin" min="0" max="59" value="5">
+      <span>min</span>
+      <input type="number" id="editSec" min="0" max="59" value="0">
+      <span>sec</span>
+      <button class="btn btn-secondary" style="padding:6px 14px;font-size:14px;" onclick="applyEdit()">SET</button>
+    </div>
+    <div class="edit-hint" id="editHint" style="display:none;">Pause to edit time</div>
+
+    <!-- Segment jump chips -->
+    <div class="seg-list" id="segChips"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn btn-danger" id="btnPrev" onclick="prevSegment()" disabled>← BACK</button>
+      <button class="btn btn-primary" id="btnStartPause" onclick="toggleStartPause()">▶ START</button>
+      <button class="btn btn-secondary" id="btnNext" onclick="nextSegment()" disabled>NEXT →</button>
+    </div>
+
+    <!-- Next up -->
+    <div class="next-bar" id="nextBar" style="display:none;">
+      <div class="next-label">NEXT UP</div>
+      <div class="next-name" id="nextName">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-text">DEPLOY OR DIE · XEBIA DEVOPS WORKSHOP · 4-ROUND SPRINT EDITION · 2 HOURS</div>
+  <div class="footer-text">CLICK ANY SEGMENT CHIP OR PROGRAMME ITEM TO JUMP · PAUSE TO EDIT TIME</div>
+</div>
+
+<div class="done-overlay" id="doneOverlay">
+  <div class="done-title">SESSION COMPLETE</div>
+  <div class="done-sub">TOTAL TIME: <span id="doneTotal">2:00</span> · GREAT WORK!</div>
+  <div style="display:flex;gap:12px;margin-top:8px;">
+    <button class="btn btn-primary" onclick="resetAll()">↩ RESTART</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('doneOverlay').classList.remove('show')">DISMISS</button>
+  </div>
+</div>
+
+<script>
+// ─── PROGRAMME DATA ────────────────────────────────────────────────────────
+// Each "block" is a top-level programme item.
+// Each block has "segments" — the individual timed steps within it.
+// totalMin: expected start time (minutes from session start) — for display only.
+
+const PROGRAMME = [
+  {
+    id: "intro",
+    icon: "🎯",
+    name: "Introduction & Game Explanation",
+    startTime: "0:00", endTime: "0:20",
+    segments: [
+      { id:"intro_1", label:"INTRODUCTION", icon:"🎯", min:20, sec:0,
+        desc:"Welcome teams. Explain the game purpose, rules, domains, and scoring. Distribute scorecards and walk through the token budget for Round 1." },
+    ]
+  },
+  {
+    id: "r1", icon: "1️⃣", name: "Round 1 — MVP Launch", startTime: "0:20", endTime: "0:40",
+    segments: [
+      { id:"r1_1", label:"DISTRIBUTE & BRIEF", icon:"📋", min:3, sec:0,
+        desc:"Hand out R1 scorecards. Briefly introduce the incident cards in play this round. Teams may start discussing." },
+      { id:"r1_2", label:"TEAMS ALLOCATE", icon:"✏️", min:5, sec:0,
+        desc:"Teams fill in their scorecards and lock in allocations on screen. Negotiate training and upgrades at the table." },
+      { id:"r1_3", label:"COLLECT & DISCUSS INCIDENT", icon:"💬", min:6, sec:0,
+        desc:"Collect scorecards. Hand each team one incident card to discuss while you enter scores on screen." },
+      { id:"r1_4", label:"REVEAL & PRINCIPLE", icon:"📚", min:6, sec:0,
+        desc:"Reveal scores. Share results. Hand out one Principle card and facilitate a short discussion: 'Has anyone experienced this?'" },
+    ]
+  },
+  {
+    id: "r2", icon: "2️⃣", name: "Round 2 — Early Growth", startTime: "0:40", endTime: "1:00",
+    segments: [
+      { id:"r2_1", label:"DISTRIBUTE & BRIEF", icon:"📋", min:3, sec:0,
+        desc:"Hand out R2 scorecards. Introduce new incident cards entering the pool this round." },
+      { id:"r2_2", label:"TEAMS ALLOCATE", icon:"✏️", min:5, sec:0,
+        desc:"Teams allocate tokens. Tech debt cards are now in play — teams must decide whether to invest." },
+      { id:"r2_3", label:"COLLECT & DISCUSS INCIDENT", icon:"💬", min:6, sec:0,
+        desc:"Collect scorecards. Distribute incident cards. Enter scores on screen while teams discuss." },
+      { id:"r2_4", label:"REVEAL & PRINCIPLE", icon:"📚", min:6, sec:0,
+        desc:"Reveal scores. Discuss: how did debt decisions play out? Hand out one Principle card." },
+    ]
+  },
+  {
+    id: "r3", icon: "3️⃣", name: "Round 3 — Scale-Up", startTime: "1:00", endTime: "1:20",
+    segments: [
+      { id:"r3_1", label:"DISTRIBUTE & BRIEF", icon:"📋", min:3, sec:0,
+        desc:"Hand out R3 scorecards. Compliance and performance cards now enter. Complexity increases." },
+      { id:"r3_2", label:"TEAMS ALLOCATE", icon:"✏️", min:5, sec:0,
+        desc:"Teams allocate tokens. Specialists trained in earlier rounds now provide free tokens." },
+      { id:"r3_3", label:"COLLECT & DISCUSS INCIDENT", icon:"💬", min:6, sec:0,
+        desc:"Collect scorecards. Apply training level-ups. Distribute incident cards for discussion." },
+      { id:"r3_4", label:"REVEAL & PRINCIPLE", icon:"📚", min:6, sec:0,
+        desc:"Reveal scores. Discuss cascading effects. Hand out one Principle card for the table." },
+    ]
+  },
+  {
+    id: "r4", icon: "4️⃣", name: "Round 4 — Enterprise Push", startTime: "1:20", endTime: "1:40",
+    segments: [
+      { id:"r4_1", label:"DISTRIBUTE & BRIEF", icon:"📋", min:3, sec:0,
+        desc:"Hand out R4 scorecards. Full incident pool now active. Architectural upgrades pay off here." },
+      { id:"r4_2", label:"TEAMS ALLOCATE", icon:"✏️", min:5, sec:0,
+        desc:"Final allocation round. Teams make last investment decisions under maximum complexity." },
+      { id:"r4_3", label:"COLLECT & DISCUSS INCIDENT", icon:"💬", min:6, sec:0,
+        desc:"Collect scorecards. Distribute final incident cards. Enter all scores on screen." },
+      { id:"r4_4", label:"REVEAL & PRINCIPLE", icon:"📚", min:6, sec:0,
+        desc:"Final score reveal. Show full breakdown per team on screen. Hand out one Principle card." },
+    ]
+  },
+  {
+    id: "wrapup", icon: "🏆", name: "Final Score + Wrap-Up", startTime: "1:40", endTime: "2:00",
+    segments: [
+      { id:"wrapup_1", label:"WRAP-UP & DEBRIEF", icon:"🏆", min:20, sec:0,
+        desc:"Final leaderboard. Show team breakdowns. Ask: 'What would you do differently from Round 1?' Connect game decisions to real DevOps practice." },
+    ]
+  },
+];
+
+// ─── FLATTEN ALL SEGMENTS ─────────────────────────────────────────────────
+const ALL_SEGS = [];
+PROGRAMME.forEach(block => {
+  block.segments.forEach(seg => {
+    ALL_SEGS.push({ ...seg, blockId: block.id, blockName: block.name, blockIcon: block.icon });
+  });
+});
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let currentIdx = 0;
+let remaining  = 0;  // seconds
+let running    = false;
+let timer      = null;
+let totalElapsed = 0; // seconds
+let totalTimer   = null;
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+function init() {
+  buildProgramme();
+  buildChips();
+  loadSegment(0, false);
+  updateControls();
+}
+
+// ─── BUILD PROGRAMME LIST ────────────────────────────────────────────────────
+function buildProgramme() {
+  const list = document.getElementById('progList');
+  list.innerHTML = '';
+  PROGRAMME.forEach(block => {
+    block.segments.forEach((seg, si) => {
+      const fullId = seg.id;
+      const segIdx = ALL_SEGS.findIndex(s => s.id === fullId);
+      const div = document.createElement('div');
+      div.className = 'prog-item future';
+      div.id = 'prog_' + fullId;
+      div.onclick = () => jumpTo(segIdx);
+      const mins = seg.min + (seg.sec > 0 ? '½' : '');
+      div.innerHTML = `
+        <div class="prog-time">${si === 0 ? block.startTime : ''}</div>
+        <div class="prog-icon">${si === 0 ? block.icon : '　'}</div>
+        <div class="prog-info">
+          <div class="prog-name">${si === 0 ? block.name : '↳ ' + seg.label}</div>
+          <div class="prog-dur">${seg.min}:${String(seg.sec).padStart(2,'0')} min</div>
+        </div>
+        <div class="prog-tick">✓</div>`;
+      list.appendChild(div);
+    });
+  });
+}
+
+// ─── BUILD SEGMENT CHIPS ────────────────────────────────────────────────────
+function buildChips() {
+  const chips = document.getElementById('segChips');
+  chips.innerHTML = '';
+  ALL_SEGS.forEach((seg, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'seg-chip';
+    btn.id = 'chip_' + seg.id;
+    btn.textContent = seg.icon + ' ' + seg.label;
+    btn.onclick = () => jumpTo(i);
+    chips.appendChild(btn);
+  });
+}
+
+// ─── LOAD SEGMENT ────────────────────────────────────────────────────────────
+function loadSegment(idx, autoStart) {
+  if (idx < 0 || idx >= ALL_SEGS.length) return;
+  clearInterval(timer);
+  running = false;
+
+  currentIdx = idx;
+  const seg = ALL_SEGS[idx];
+  remaining = seg.min * 60 + seg.sec;
+
+  // UI
+  document.getElementById('phaseLabel').textContent = seg.blockName.toUpperCase();
+  document.getElementById('phaseName').textContent = seg.label;
+  document.getElementById('phaseDesc').textContent = seg.desc;
+  document.getElementById('segLabel').textContent = seg.label;
+  document.getElementById('segIcon').textContent = seg.icon;
+  document.getElementById('segDesc').textContent = seg.desc;
+  updateTimerDisplay();
+  updateDots();
+  updateProg();
+  updateNextBar();
+  updateControls();
+
+  if (autoStart) startTimer();
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────────────
+function startTimer() {
+  if (running) return;
+  running = true;
+  document.getElementById('btnStartPause').textContent = '⏸ PAUSE';
+  document.getElementById('editRow').style.display = 'none';
+  document.getElementById('editHint').style.display = 'block';
+
+  timer = setInterval(() => {
+    remaining--;
+    totalElapsed++;
+    updateTimerDisplay();
+    updateTotalClock();
+    if (remaining <= 0) {
+      clearInterval(timer);
+      running = false;
+      playBeep();
+      // Auto-advance after 1s pause
+      setTimeout(() => {
+        if (currentIdx < ALL_SEGS.length - 1) {
+          nextSegment();
+        } else {
+          document.getElementById('doneOverlay').classList.add('show');
+          document.getElementById('doneTotal').textContent = formatTime(totalElapsed);
+        }
+      }, 1200);
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(timer);
+  running = false;
+  document.getElementById('btnStartPause').textContent = '▶ RESUME';
+  document.getElementById('editRow').style.display = 'flex';
+  document.getElementById('editHint').style.display = 'none';
+  // Pre-fill edit fields
+  document.getElementById('editMin').value = Math.floor(remaining / 60);
+  document.getElementById('editSec').value = remaining % 60;
+}
+
+function toggleStartPause() {
+  if (running) { pauseTimer(); }
+  else {
+    if (remaining <= 0) remaining = ALL_SEGS[currentIdx].min * 60 + ALL_SEGS[currentIdx].sec;
+    startTimer();
+    // Start total clock if not running
+    if (!totalTimer) {
+      totalTimer = setInterval(() => {}, 1000); // total tracked inside tick
+    }
+  }
+}
+
+function applyEdit() {
+  const m = parseInt(document.getElementById('editMin').value) || 0;
+  const s = parseInt(document.getElementById('editSec').value) || 0;
+  remaining = m * 60 + s;
+  updateTimerDisplay();
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function nextSegment() {
+  markDone(currentIdx);
+  if (currentIdx < ALL_SEGS.length - 1) loadSegment(currentIdx + 1, running);
+  else { clearInterval(timer); running = false; }
+}
+
+function prevSegment() {
+  clearInterval(timer); running = false;
+  const prev = Math.max(0, currentIdx - 1);
+  loadSegment(prev, false);
+}
+
+function jumpTo(idx) {
+  clearInterval(timer); running = false;
+  loadSegment(idx, false);
+}
+
+function markDone(idx) {
+  const seg = ALL_SEGS[idx];
+  const el = document.getElementById('prog_' + seg.id);
+  if (el) { el.className = el.className.replace('active','').replace('future','') + ' done'; }
+  const chip = document.getElementById('chip_' + seg.id);
+  if (chip) chip.classList.add('done');
+}
+
+// ─── DISPLAY UPDATES ──────────────────────────────────────────────────────────
+function updateTimerDisplay() {
+  const m = Math.floor(Math.abs(remaining) / 60);
+  const s = Math.abs(remaining) % 60;
+  const str = `${m}:${String(s).padStart(2,'0')}`;
+  const el = document.getElementById('bigTimer');
+  el.textContent = remaining < 0 ? '-' + str : str;
+  el.className = 'big-timer';
+  if (remaining <= 60 && remaining > 0)  el.classList.add('amber');
+  if (remaining <= 0)                    el.classList.add('red');
+}
+
+function updateTotalClock() {
+  document.getElementById('totalClock').textContent = formatTime(totalElapsed);
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function updateDots() {
+  const seg = ALL_SEGS[currentIdx];
+  const block = PROGRAMME.find(b => b.id === seg.blockId);
+  if (!block) { document.getElementById('segDots').innerHTML = ''; return; }
+  const dots = document.getElementById('segDots');
+  dots.innerHTML = block.segments.map((s, i) => {
+    const absIdx = ALL_SEGS.findIndex(x => x.id === s.id);
+    const cls = absIdx < currentIdx ? 'done' : absIdx === currentIdx ? 'active' : '';
+    return `<div class="seg-dot ${cls}" title="${s.label}"></div>`;
+  }).join('');
+}
+
+function updateProg() {
+  ALL_SEGS.forEach((seg, i) => {
+    const el = document.getElementById('prog_' + seg.id);
+    if (!el) return;
+    el.className = 'prog-item ' + (i < currentIdx ? 'done' : i === currentIdx ? 'active' : 'future');
+  });
+  // Chips
+  ALL_SEGS.forEach((seg, i) => {
+    const chip = document.getElementById('chip_' + seg.id);
+    if (!chip) return;
+    chip.className = 'seg-chip ' + (i < currentIdx ? 'done' : i === currentIdx ? 'active' : '');
+  });
+  // Scroll active into view
+  const active = document.querySelector('.prog-item.active');
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updateNextBar() {
+  const bar = document.getElementById('nextBar');
+  if (currentIdx < ALL_SEGS.length - 1) {
+    const next = ALL_SEGS[currentIdx + 1];
+    document.getElementById('nextName').textContent = `${next.icon} ${next.label} · ${next.min}:${String(next.sec).padStart(2,'0')} min`;
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function updateControls() {
+  document.getElementById('btnPrev').disabled = currentIdx === 0 || running;
+  document.getElementById('btnNext').disabled = currentIdx >= ALL_SEGS.length - 1;
+}
+
+// ─── BEEP ─────────────────────────────────────────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.15, 0.3].forEach((t, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = i === 2 ? 880 : 660;
+      g.gain.setValueAtTime(0.3, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.25);
+      o.start(ctx.currentTime + t);
+      o.stop(ctx.currentTime + t + 0.3);
+    });
+  } catch(e) {}
+}
+
+function resetAll() {
+  clearInterval(timer);
+  running = false;
+  totalElapsed = 0;
+  currentIdx = 0;
+  document.getElementById('doneOverlay').classList.remove('show');
+  document.getElementById('totalClock').textContent = '0:00';
+  document.getElementById('btnStartPause').textContent = '▶ START';
+  init();
+}
+
+init();
+</script>
+</body>
+</html>

@@ -18,7 +18,63 @@ const CATEGORIES = [
   { id: "stability",  label: "Stability/Uptime",icon: "📡", color: "#4dc3ff", desc: "SRE work, monitoring, runbooks. Outages burn user trust fast." },
   { id: "compliance", label: "Compliance",      icon: "📋", color: "#b47dff", desc: "GDPR, SOC2, audits. Failures = fines & reputation damage." },
   { id: "performance",label: "Performance",     icon: "🚀", color: "#ff9f43", desc: "Speed, DB optimisation, caching. Slowness drives churn." },
+  { id: "morale",     label: "Team Morale",     icon: "🫀", color: "#ff6eb4", desc: "Team health & engagement. Low morale reduces capacity and suspends training benefits." },
 ];
+
+// ─── ROLES ────────────────────────────────────────────────────────────────────
+// Each domain has an associated role. Roles level up via training (locking domain for a sprint).
+// L1: +1 free token/round in domain. L2: halves defence threshold (or special benefit for features/morale).
+const ROLES = [
+  { id: "features",    label: "Product Manager",       icon: "💼", color: "#00ff9d",
+    l1desc: "+1 free Features token each sprint",
+    l2desc: "+1 bonus point each sprint any Features tokens are allocated" },
+  { id: "techdebt",   label: "Engineering Lead",       icon: "🔨", color: "#ffb800",
+    l1desc: "+1 free Tech Debt token each sprint",
+    l2desc: "Halves token threshold to defend Tech Debt incidents" },
+  { id: "security",   label: "Security Lead",          icon: "🔐", color: "#ff4d6d",
+    l1desc: "+1 free Security token each sprint",
+    l2desc: "Halves token threshold to defend Security incidents" },
+  { id: "stability",  label: "SRE",                    icon: "📡", color: "#4dc3ff",
+    l1desc: "+1 free Stability token each sprint",
+    l2desc: "Halves token threshold to defend Stability incidents" },
+  { id: "compliance", label: "Compliance Officer",     icon: "⚖", color: "#b47dff",
+    l1desc: "+1 free Compliance token each sprint",
+    l2desc: "Halves token threshold to defend Compliance incidents" },
+  { id: "performance",label: "Performance Engineer",   icon: "🏎", color: "#ff9f43",
+    l1desc: "+1 free Performance token each sprint",
+    l2desc: "Halves token threshold to defend Performance incidents" },
+  { id: "morale",     label: "People Lead",            icon: "🫀", color: "#ff6eb4",
+    l1desc: "+1 free Morale token each sprint",
+    l2desc: "Penalty thresholds shift down by 1 (team tolerates lower morale)" },
+];
+
+// ─── MORALE CONSTANTS ─────────────────────────────────────────────────────────
+const MORALE_START     = 5;
+const MORALE_MAX       = 10;
+const MORALE_THRESHOLD_TOKEN    = 3;  // below this: -1 capacity token
+const MORALE_THRESHOLD_SUSPEND  = 1;  // below this: training benefits suspended
+
+function getMoraleThresholds(team) {
+  // L2 People Lead shifts thresholds down by 1
+  const shift = (team?.roles?.morale || 0) >= 2 ? 1 : 0;
+  return {
+    tokenPenalty: MORALE_THRESHOLD_TOKEN - shift,
+    suspend:      MORALE_THRESHOLD_SUSPEND - shift,
+  };
+}
+
+// Calculate morale delta for a sprint result
+function calcMoraleDelta({ allocation, criticalsFailed, debtAccrued, opportunitiesSeized, moraleTokens }) {
+  let delta = 0;
+  // Rise
+  delta += Math.min(moraleTokens, 3);          // up to +3 from allocation
+  delta += opportunitiesSeized;                 // +1 per opportunity seized
+  // Fall
+  delta -= criticalsFailed;                     // -1 per undefended critical
+  delta -= Math.floor(debtAccrued / 10);        // -1 per 10 debt accrued
+  if (moraleTokens === 0) delta -= 1;           // -1 if zero morale tokens
+  return delta;
+}
 
 // Descriptions are intentionally vague — players must GUESS which domain each card threatens.
 // 'type' is hidden from the UI until after commit. debtIfIgnored is never shown to players.
@@ -300,6 +356,63 @@ const ACHIEVEMENT_BADGES = [
   { id:"feature_king",label:"Feature Factory",      icon:"⚡", cond: s => s.features >= 4 },
 ];
 
+// ─── ARCHITECTURAL UPGRADES ──────────────────────────────────────────────────
+// One purchase per round, 2 tokens from buying team's pool.
+// Once purchased, benefit applies to ALL teams permanently.
+const ARCH_UPGRADES = [
+  {
+    id: "crossfunctional",
+    label: "Cross-Functional Teams",
+    icon: "🤝",
+    color: "#00ff9d",
+    cost: 2,
+    desc: "Break down silos between dev, ops, and product. Everyone ships together.",
+    benefit: "+1 capacity token per round for all teams permanently",
+    // Applied in maxTokens calculation
+    effect: { type: "capacity", value: 1 },
+  },
+  {
+    id: "microservices",
+    label: "Microservices",
+    icon: "🔗",
+    color: "#4dc3ff",
+    cost: 2,
+    desc: "Decouple your architecture. Failures stay contained. Teams deploy independently.",
+    benefit: "Stability incidents cost 1 fewer token to defend",
+    effect: { type: "threshold_reduction", domain: "stability", value: 1 },
+  },
+  {
+    id: "cicd",
+    label: "CI/CD Pipeline",
+    icon: "🔁",
+    color: "#ffb800",
+    cost: 2,
+    desc: "Automate your deployment pipeline. Ship faster, break less.",
+    benefit: "+2 points per sprint for teams with any trained specialist",
+    effect: { type: "score_bonus", value: 2 },
+  },
+  {
+    id: "devsecops",
+    label: "DevSecOps / Zero Trust",
+    icon: "🔐",
+    color: "#ff4d6d",
+    cost: 2,
+    desc: "Shift security left. Every commit scanned. Every access verified.",
+    benefit: "Security incidents cost 1 fewer token to defend",
+    effect: { type: "threshold_reduction", domain: "security", value: 1 },
+  },
+  {
+    id: "observability",
+    label: "Observability Platform",
+    icon: "📊",
+    color: "#b47dff",
+    cost: 2,
+    desc: "Logs, metrics, traces. You can't fix what you can't see.",
+    benefit: "Failed incidents reveal their domain immediately; SREs get +1 free Stability token",
+    effect: { type: "observability" },
+  },
+];
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function dealIncidents(phase, usedIds = new Set()) {
@@ -321,19 +434,44 @@ function dealIncidents(phase, usedIds = new Set()) {
   return pool.slice(0, count);
 }
 
-function scoreAllocation(allocation, incidents, phase) {
+function scoreAllocation(allocation, incidents, phase, team = null, upgrades = new Set()) {
   let score = 0;
   let breakdown = [];
   let debtAccrued = 0;
+  const roles = team?.roles || {};
+  const moraleOk = !team || team.morale >= (getMoraleThresholds(team).suspend);
+  // Benefits suspended if morale below suspend threshold
+  const benefitsActive = moraleOk;
 
-  // Base feature score (value delivery)
-  // Early phases: features score well; late phases require debt investment to maintain velocity
+  // ── Role L1: free tokens (applied before scoring, already factored into allocation by caller) ──
+  // ── Role L2 threshold halving ──
+  function getThreshold(domainId, baseSeverity) {
+    const base = baseSeverity === 3 ? 2 : 1;
+    // Upgrade reductions (microservices → stability, devsecops → security)
+    const upgradeReduction =
+      (domainId === "stability" && upgrades.has("microservices") ? 1 : 0) +
+      (domainId === "security"  && upgrades.has("devsecops")     ? 1 : 0);
+    const afterUpgrade = Math.max(1, base - upgradeReduction);
+    if (!benefitsActive) return afterUpgrade;
+    const level = roles[domainId] || 0;
+    return level >= 2 ? Math.max(1, Math.ceil(afterUpgrade / 2)) : afterUpgrade;
+  }
+
+  // Base feature score
   const debtMultiplier = phase <= 2 ? 1.0 : phase <= 4 ? (allocation.techdebt >= 2 ? 1.15 : 0.55) : (allocation.techdebt >= 3 ? 1.2 : allocation.techdebt >= 2 ? 0.7 : 0.35);
   const featScore = allocation.features * 9 * debtMultiplier;
   score += Math.round(featScore);
   breakdown.push({ label: "Feature delivery", value: Math.round(featScore), color: "#00ff9d" });
 
+  // L2 Product Manager bonus: +1 if any features allocated
+  if (benefitsActive && (roles.features || 0) >= 2 && allocation.features > 0) {
+    score += 1;
+    breakdown.push({ label: "PM expertise bonus", value: 1, color: "#00ff9d" });
+  }
+
   // Incident resolution
+  let criticalsFailed = 0;
+  let opportunitiesSeized = 0;
   incidents.forEach(inc => {
     const val = allocation[inc.type] || 0;
     if (inc.type === "opportunity") {
@@ -342,13 +480,18 @@ function scoreAllocation(allocation, incidents, phase) {
       if (inc.id === "o2" && allocation.techdebt >= 2 && allocation.security >= 1) bonus = 18;
       if (inc.id === "o3" && allocation.performance >= 3) bonus = 22;
       if (inc.id === "o4" && allocation.features >= 3 && allocation.stability >= 1) bonus = 18;
-      if (bonus > 0) { score += bonus; breakdown.push({ label: `✨ ${inc.title}`, value: bonus, color: "#ffb800" }); }
+      if (bonus > 0) {
+        score += bonus;
+        opportunitiesSeized++;
+        breakdown.push({ label: `✨ ${inc.title}`, value: bonus, color: "#ffb800" });
+      }
     } else {
-      const threshold = inc.severity === 3 ? 2 : 1;
+      const threshold = getThreshold(inc.type, inc.severity);
       if (val < threshold) {
         const penalty = inc.debtIfIgnored;
         score -= penalty;
         debtAccrued += inc.debtIfIgnored;
+        if (inc.severity === 3) criticalsFailed++;
         breakdown.push({ label: `💥 ${inc.title}`, value: -penalty, color: "#ff4d6d" });
       } else {
         const defense = Math.round(inc.debtIfIgnored * 0.35);
@@ -361,7 +504,16 @@ function scoreAllocation(allocation, incidents, phase) {
   // Stability bonus
   if (allocation.stability >= 2) { score += 5; breakdown.push({ label: "Uptime bonus", value: 5, color: "#4dc3ff" }); }
 
-  return { score: Math.max(score, 0), breakdown, debtAccrued };
+  // Morale bonus: invested tokens signal positive team culture
+  if (allocation.morale >= 2) { score += 3; breakdown.push({ label: "Morale investment", value: 3, color: "#ff6eb4" }); }
+
+  // CI/CD Pipeline upgrade: +2 points if team has any trained specialist
+  if (upgrades.has("cicd") && team && Object.values(team.roles || {}).some(l => l >= 1)) {
+    score += 2;
+    breakdown.push({ label: "CI/CD pipeline bonus", value: 2, color: "#ffb800" });
+  }
+
+  return { score: Math.max(score, 0), breakdown, debtAccrued, criticalsFailed, opportunitiesSeized };
 }
 
 function getGrade(totalScore, rounds) {
@@ -375,8 +527,8 @@ function getGrade(totalScore, rounds) {
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
-function TokenSlider({ cat, value, onChange, maxTokens, totalUsed }) {
-  const canIncrease = totalUsed < maxTokens;
+function TokenSlider({ cat, value, onChange, maxTokens, totalUsed, locked = false }) {
+  const canIncrease = !locked && totalUsed < maxTokens;
   return (
     <div style={{
       background: "rgba(255,255,255,0.04)", border: `1px solid ${cat.color}33`,
@@ -388,7 +540,7 @@ function TokenSlider({ cat, value, onChange, maxTokens, totalUsed }) {
           <span style={{ fontSize: 20 }}>{cat.icon}</span>
           <div>
             <div style={{ fontFamily:"'Space Mono',monospace", fontSize:13, color: cat.color, fontWeight:700 }}>{cat.label}</div>
-            <div style={{ fontSize:10, color:"#666", maxWidth:220, lineHeight:1.4 }}>{cat.desc}</div>
+            <div style={{ fontSize:10, color:"#999", maxWidth:220, lineHeight:1.4 }}>{cat.desc}</div>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -414,7 +566,7 @@ function TokenSlider({ cat, value, onChange, maxTokens, totalUsed }) {
 }
 
 function IncidentCard({ inc, allocation }) {
-  const revealed = allocation !== null; // only show outcomes after commit
+  const revealed = allocation !== null && allocation !== undefined; // only show outcomes after commit
 
   // Outcome calculation (only used post-commit)
   const relevant = revealed ? (allocation[inc.type] || 0) : null;
@@ -464,13 +616,13 @@ function IncidentCard({ inc, allocation }) {
             {inc.title}
           </div>
           {/* Narrative only — no domain/penalty hints */}
-          <div style={{ fontSize:11, color:"#888", lineHeight:1.6 }}>{inc.desc}</div>
+          <div style={{ fontSize:11, color:"#aaa", lineHeight:1.6 }}>{inc.desc}</div>
 
           {/* Reveal domain + outcome ONLY after commit */}
           {revealed && (
             <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #2a2a2a" }}>
               {/* Domain reveal */}
-              <div style={{ fontSize:10, color:"#555", marginBottom:4, fontFamily:"'Space Mono',monospace", letterSpacing:1 }}>
+              <div style={{ fontSize:10, color:"#aaa", marginBottom:4, fontFamily:"'Space Mono',monospace", letterSpacing:1 }}>
                 DOMAIN: <span style={{
                   color: inc.type === "opportunity" ? "#ffb800" :
                     inc.type === "security" ? "#ff4d6d" : inc.type === "stability" ? "#4dc3ff" :
@@ -523,7 +675,7 @@ function Scoreboard({ teams }) {
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontFamily:"'Space Mono',monospace", fontSize:28, fontWeight:700, color: grade.color }}>{team.totalScore}</div>
-              <div style={{ fontSize:10, color:"#555" }}>TOTAL PTS</div>
+              <div style={{ fontSize:10, color:"#aaa" }}>TOTAL PTS</div>
             </div>
           </div>
         );
@@ -535,7 +687,7 @@ function Scoreboard({ teams }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState("setup"); // setup | game | retro | end
+  const [screen, setScreen] = useState("setup"); // setup | game | reveal | retro | end
   const [teamCount, setTeamCount] = useState(2);
   const [teamNames, setTeamNames] = useState(["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta", "Team Echo", "Team Foxtrot"]);
   const [teams, setTeams] = useState([]);
@@ -551,6 +703,13 @@ export default function App() {
   const [expandedPrinciple, setExpandedPrinciple] = useState(null);
   const [roundBonusMap, setRoundBonusMap] = useState({});
   const [usedIncidentIds, setUsedIncidentIds] = useState(new Set());
+  const [sealedAllocations, setSealedAllocations] = useState([]); // allocations locked before reveal
+  const [revealResults, setRevealResults] = useState([]); // fully scored results for reveal screen
+
+  // Set of upgrade ids purchased (shared/global — benefits all teams)
+  const [purchasedUpgrades, setPurchasedUpgrades] = useState(new Set());
+  // Per-team upgrade selection this round: { [teamIdx]: upgradeId }
+  const [upgradeSelections, setUpgradeSelections] = useState({});
 
   // Tip cycling from DORA principles for ticker
   const TICKER_TIPS = Object.values(PHASE_RETROS).flatMap(r => r.principles.map(p => `${p.icon} ${p.title} — ${p.practice}`));
@@ -572,6 +731,9 @@ export default function App() {
       totalScore: 0, rounds: [],
       badges: [], debtTotal: 0,
       bonusTokens: 0,
+      roles: Object.fromEntries(ROLES.map(r => [r.id, 0])), // L0 all roles
+      morale: MORALE_START,
+      untrainedSprints: Object.fromEntries(ROLES.map(r => [r.id, 0])), // consecutive sprints untrained
     }));
     setTeams(newTeams);
     setActiveTeamIdx(0);
@@ -581,6 +743,10 @@ export default function App() {
     setRoundResults(null);
     setRoundScores([]);
     setRoundBonusMap({});
+    setSealedAllocations([]);
+    setRevealResults([]);
+    setPurchasedUpgrades(new Set());
+    setUpgradeSelections({});
     const freshUsed = new Set();
     setUsedIncidentIds(freshUsed);
     const inc = dealIncidents(1, freshUsed);
@@ -589,45 +755,121 @@ export default function App() {
   }
 
   const totalUsed = Object.values(allocation).reduce((a,b)=>a+b,0);
-  const maxTokens = phase.tokens + (roundBonusMap[activeTeamIdx] || 0);
 
+  // L1 role benefit: free token in domain — shown as bonus capacity
+  const activeTeam = teams[activeTeamIdx];
+  const benefitsSuspended = activeTeam && activeTeam.morale < getMoraleThresholds(activeTeam).suspend;
+  const l1FreeTokens = (!benefitsSuspended && activeTeam?.roles)
+    ? ROLES.filter(r => (activeTeam.roles[r.id] || 0) >= 1).length
+    : 0;
+  // Upgrade: Cross-Functional Teams = +1 capacity for all
+  const crossFuncBonus = purchasedUpgrades.has("crossfunctional") ? 1 : 0;
+  // Upgrade: Observability Platform = SRE (stability L1+) gets +1 free stability token
+  const obsBonus = (purchasedUpgrades.has("observability") && (activeTeam?.roles?.stability || 0) >= 1) ? 1 : 0;
+  // Upgrade purchase cost this round (buying team pays 2 tokens)
+  const upgradeCost = upgradeSelections[activeTeamIdx] ? 2 : 0;
+  const maxTokens = phase.tokens + (roundBonusMap[activeTeamIdx] || 0) + l1FreeTokens
+    + crossFuncBonus + obsBonus - upgradeCost;
+
+  // Seal this team's allocation — no scoring yet, no peeking
   function commitAllocation() {
-    const team = teams[activeTeamIdx];
-    const { score, breakdown, debtAccrued } = scoreAllocation(allocation, incidents, round+1);
-    const newBadges = ACHIEVEMENT_BADGES.filter(b => b.cond(allocation) && !team.badges.find(x=>x.id===b.id));
-    const result = { round: round+1, phase: phase.name, score, breakdown, allocation: {...allocation}, debtAccrued };
+    const newSealed = [...sealedAllocations, { teamIdx: activeTeamIdx, allocation: {...allocation} }];
+    setSealedAllocations(newSealed);
+    setRoundResults("sealed"); // sentinel: show locked-in confirmation
 
-    const updatedTeam = {
-      ...team,
-      totalScore: team.totalScore + score,
-      rounds: [...team.rounds, result],
-      badges: [...team.badges, ...newBadges],
-      debtTotal: team.debtTotal + debtAccrued,
-      bonusTokens: allocation.techdebt >= 3 ? 1 : 0, // reward for paying debt
-    };
-
-    const newTeams = teams.map((t,i) => i === activeTeamIdx ? updatedTeam : t);
-    setTeams(newTeams);
-    const newRoundScores = [...roundScores, { teamName: team.name, score, breakdown }];
-    setRoundScores(newRoundScores);
-    setRoundResults({ score, breakdown, newBadges, debtAccrued, allScores: newRoundScores, allocation: {...allocation} });
-
-    // check if all teams done this round
-    if (activeTeamIdx === teamCount - 1) {
-      setAllTeamsDoneRound(true);
+    if (activeTeamIdx < teamCount - 1) {
+      // More teams to go — move to next after a brief locked screen
     }
+    // If last team just sealed, scoring + reveal happen in proceedToNextTeamOrReveal
   }
 
-  function nextTeamOrRound() {
-    setRoundResults(null);
+  // Called from the "locked in" confirmation button
+  function proceedToNextTeamOrReveal() {
     if (activeTeamIdx < teamCount - 1) {
-      // More teams still to play this round
+      // Hand off to next team
       setActiveTeamIdx(activeTeamIdx + 1);
       setAllocation(Object.fromEntries(CATEGORIES.map(c=>[c.id,0])));
+      setRoundResults(null);
     } else {
-      // All teams done this round — go to retro, pass final scores
-      setRetroRoundScores([...roundScores]);
-      setScreen("retro");
+      // All teams have sealed — now score everyone and go to reveal
+      const allSealed = [...sealedAllocations, { teamIdx: activeTeamIdx, allocation: {...allocation} }];
+      // allSealed may already include last team from commitAllocation above, rebuild cleanly
+      const sealed = sealedAllocations; // already pushed in commitAllocation
+
+      let updatedTeams = [...teams];
+      const results = [];
+      const newRoundScores = [];
+
+      sealed.forEach(({ teamIdx, allocation: alloc }) => {
+        const team = updatedTeams[teamIdx];
+        const { score: baseScore, breakdown: baseBreakdown, debtAccrued, criticalsFailed, opportunitiesSeized } = scoreAllocation(alloc, incidents, round+1, team, newPurchased);
+        // Arch upgrade investor bonus: +3 for buying an upgrade this round
+        const upgradeBought = upgradeSelections[teamIdx];
+        const upgradeBonus = upgradeBought ? 3 : 0;
+        const score = baseScore + upgradeBonus;
+        const breakdown = upgradeBought
+          ? [...baseBreakdown, { label:`🏗 Arch. investment: ${ARCH_UPGRADES.find(u=>u.id===upgradeBought)?.label}`, value: upgradeBonus, color:"#b47dff" }]
+          : baseBreakdown;
+        const newBadges = ACHIEVEMENT_BADGES.filter(b => b.cond(alloc) && !team.badges.find(x=>x.id===b.id));
+        const result = { round: round+1, phase: phase.name, score, breakdown, allocation: alloc, debtAccrued };
+
+        // Morale delta
+        const moraleDelta = calcMoraleDelta({
+          allocation: alloc,
+          criticalsFailed,
+          debtAccrued,
+          opportunitiesSeized,
+          moraleTokens: alloc.morale || 0,
+        });
+        // Count untrained sprints per role (for future morale penalty trigger)
+        const newUntrainedSprints = {};
+        ROLES.forEach(r => {
+          const lvl = team.roles?.[r.id] || 0;
+          newUntrainedSprints[r.id] = lvl === 0 ? (team.untrainedSprints?.[r.id] || 0) + 1 : 0;
+        });
+        // -1 morale per role untrained 3+ consecutive sprints
+        const longUntrained = Object.values(newUntrainedSprints).filter(v => v >= 3).length;
+        const newMorale = Math.max(0, Math.min(MORALE_MAX, (team.morale ?? MORALE_START) + moraleDelta - longUntrained));
+
+        // Capacity penalty from morale (applied next sprint via bonusTokens logic)
+        const { tokenPenalty } = getMoraleThresholds({ ...team, roles: team.roles });
+        const moralePenaltyToken = newMorale < tokenPenalty ? -1 : 0;
+
+        updatedTeams[teamIdx] = {
+          ...team,
+          totalScore: team.totalScore + score,
+          rounds: [...team.rounds, result],
+          badges: [...team.badges, ...newBadges],
+          debtTotal: team.debtTotal + debtAccrued,
+          bonusTokens: (alloc.techdebt >= 3 ? 1 : 0) + moralePenaltyToken,
+          morale: newMorale,
+          untrainedSprints: newUntrainedSprints,
+        };
+        results.push({ teamName: team.name, teamIdx, score, breakdown, newBadges, debtAccrued,
+          allocation: alloc, moraleDelta, moralePenaltyToken, newMorale });
+        newRoundScores.push({ teamName: team.name, score, breakdown });
+      });
+
+      // Apply all purchased upgrades this round (one per team, independently)
+      let newPurchased = new Set(purchasedUpgrades);
+      Object.values(upgradeSelections).forEach(upgradeId => {
+        newPurchased = new Set([...newPurchased, upgradeId]);
+      });
+
+      // Role level-ups are applied by the game master on the retro screen
+      const finalResults = results.map(r => ({
+        ...r,
+        trainedDomains: [],
+        newMorale: updatedTeams[r.teamIdx]?.morale,
+      }));
+
+      setTeams(updatedTeams);
+      setPurchasedUpgrades(newPurchased);
+      setRoundScores(newRoundScores);
+      setRevealResults(finalResults);
+      setRetroRoundScores(newRoundScores);
+      setAllTeamsDoneRound(true);
+      setScreen("reveal");
     }
   }
 
@@ -643,6 +885,10 @@ export default function App() {
       setRoundScores([]);
       setAllTeamsDoneRound(false);
       setExpandedPrinciple(null);
+      setSealedAllocations([]);
+      setRevealResults([]);
+      setRoundResults(null);
+      setUpgradeSelections({});
       // Mark this round's incidents as used so they can't repeat
       const newUsed = new Set([...usedIncidentIds, ...incidents.map(i => i.id)]);
       setUsedIncidentIds(newUsed);
@@ -656,6 +902,224 @@ export default function App() {
       setTeams(prev => prev.map(t => ({ ...t, bonusTokens: 0 })));
       setScreen("game");
     }
+  }
+
+
+  // ── REVEAL SCREEN ────────────────────────────────────────────────────────────
+  if (screen === "reveal") {
+    const winner = revealResults.reduce((best, r) => r.score > best.score ? r : best, revealResults[0] || {score:-1});
+    return (
+      <div style={{ minHeight:"100vh", background:"#080c10", color:"#fff",
+        fontFamily:"'Space Mono',monospace", padding:"32px 20px" }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+          * { box-sizing:border-box }
+          @keyframes revealDrop { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes glow { 0%,100%{text-shadow:0 0 20px #00ff9d44} 50%{text-shadow:0 0 40px #00ff9d88} }
+        `}</style>
+
+        {/* Header */}
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:13, letterSpacing:6,
+            color:"#777", marginBottom:6 }}>SPRINT {round + 1} · {phase.name.toUpperCase()}</div>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:40, letterSpacing:6,
+            color:"#00ff9d", animation:"glow 3s ease-in-out infinite", marginBottom:4 }}>
+            RESULTS REVEALED
+          </div>
+          <div style={{ fontSize:11, color:"#777", letterSpacing:2 }}>
+            ALL TEAMS · SIMULTANEOUS REVEAL
+          </div>
+        </div>
+
+        {/* Team result cards */}
+        <div style={{ display:"grid",
+          gridTemplateColumns: revealResults.length <= 2 ? `repeat(${revealResults.length}, 1fr)` : "repeat(auto-fit, minmax(280px, 1fr))",
+          gap:16, maxWidth:1100, margin:"0 auto 32px" }}>
+          {revealResults.map((r, i) => {
+            const isTopScore = r.score === winner.score;
+            const teamColor = teams[r.teamIdx]?.color || "#00ff9d";
+            const col = ["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff9f43","#ff4d6d"][r.teamIdx] || "#00ff9d";
+            const scoreColor = r.score > 20 ? "#00ff9d" : r.score > 10 ? "#ffb800" : "#ff4d6d";
+            return (
+              <div key={r.teamIdx} style={{
+                background: isTopScore ? "rgba(0,255,157,0.06)" : "#0d1117",
+                border: isTopScore ? "1px solid #00ff9d44" : `1px solid ${col}22`,
+                borderRadius:16, padding:24,
+                animation:`revealDrop 0.5s ease ${i * 0.15}s both`,
+                position:"relative"
+              }}>
+                {isTopScore && revealResults.length > 1 && (
+                  <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)",
+                    background:"#00ff9d", color:"#080c10", fontFamily:"'Bebas Neue',sans-serif",
+                    fontSize:11, letterSpacing:3, padding:"3px 12px", borderRadius:20 }}>
+                    🏆 SPRINT LEADER
+                  </div>
+                )}
+
+                {/* Team name + score */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+                  <div>
+                    <div style={{ fontSize:10, color:col, letterSpacing:2, marginBottom:2 }}>
+                      {r.teamName.toUpperCase()}
+                    </div>
+                    <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:36, lineHeight:1, color:scoreColor }}>
+                      +{r.score}
+                    </div>
+                    <div style={{ fontSize:9, color:"#777", letterSpacing:1 }}>SPRINT SCORE</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:10, color:"#777", letterSpacing:1, marginBottom:4 }}>RUNNING TOTAL</div>
+                    <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:"#fff" }}>
+                      {teams[r.teamIdx]?.totalScore || 0}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Allocation row */}
+                <div style={{ display:"flex", gap:4, marginBottom:14, flexWrap:"wrap" }}>
+                  {CATEGORIES.map(cat => (
+                    <div key={cat.id} style={{ display:"flex", alignItems:"center", gap:3,
+                      background:"rgba(255,255,255,0.04)", borderRadius:6, padding:"3px 7px",
+                      border: r.allocation[cat.id] > 0 ? `1px solid ${cat.color}33` : "1px solid transparent" }}>
+                      <span style={{ fontSize:10 }}>{cat.icon}</span>
+                      <span style={{ fontSize:10, color: r.allocation[cat.id] > 0 ? cat.color : "#333",
+                        fontWeight: r.allocation[cat.id] > 0 ? 700 : 400 }}>
+                        {r.allocation[cat.id]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Breakdown */}
+                <div style={{ borderTop:"1px solid #1a1a1a", paddingTop:12 }}>
+                  {r.breakdown.map((b, bi) => (
+                    <div key={bi} style={{ display:"flex", justifyContent:"space-between",
+                      marginBottom:4, fontSize:11,
+                      color: b.value >= 0 ? "rgba(255,255,255,0.5)" : "#ff4d6d66" }}>
+                      <span style={{ color: b.value < 0 ? "#ff4d6d" : "inherit" }}>{b.label}</span>
+                      <span style={{ fontWeight:700, color: b.value >= 0 ? b.color : "#ff4d6d" }}>
+                        {b.value > 0 ? "+" : ""}{b.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Badges + debt */}
+                {r.newBadges?.length > 0 && (
+                  <div style={{ marginTop:10, display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {r.newBadges.map(b=>(
+                      <span key={b.id} style={{ background:"#ffb80022", border:"1px solid #ffb80044",
+                        borderRadius:20, padding:"2px 8px", fontSize:10, color:"#ffb800" }}>
+                        {b.icon} {b.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {r.debtAccrued > 0 && (
+                  <div style={{ marginTop:8, fontSize:10, color:"#ff4d6d" }}>
+                    ⚠ +{r.debtAccrued} technical debt accrued
+                  </div>
+                )}
+                {r.newMorale !== undefined && (() => {
+                  const col = r.newMorale >= 4 ? "#ff6eb4" : r.newMorale >= 2 ? "#ffb800" : "#ff4d6d";
+                  const delta = r.moraleDelta || 0;
+                  return (
+                    <div style={{ marginTop:8, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:10, color:col }}>🫀 Morale: {r.newMorale}/10</span>
+                      <span style={{ fontSize:10, color: delta >= 0 ? "#ff6eb4" : "#ff4d6d" }}>
+                        ({delta >= 0 ? "+" : ""}{delta})
+                      </span>
+                      {r.moralePenaltyToken < 0 && (
+                        <span style={{ fontSize:10, color:"#ffb800" }}>⚠ −1 capacity next sprint</span>
+                      )}
+                    </div>
+                  );
+                })()}
+                {upgradeSelections[r.teamIdx] && (() => {
+                  const upg = ARCH_UPGRADES.find(u => u.id === upgradeSelections[r.teamIdx]);
+                  return upg ? (
+                    <div style={{ marginTop:8, padding:"6px 10px", borderRadius:8,
+                      background:`${upg.color}12`, border:`1px solid ${upg.color}44`,
+                      display:"flex", alignItems:"center", gap:6 }}>
+                      <span style={{ fontSize:14 }}>{upg.icon}</span>
+                      <div>
+                        <div style={{ fontSize:10, color:upg.color, fontWeight:600 }}>
+                          🏗 PURCHASED: {upg.label}
+                        </div>
+                        <div style={{ fontSize:9, color:"#aaa" }}>Benefit now active for all teams</div>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+                {r.trainedDomains?.length > 0 && (
+                  <div style={{ marginTop:8, display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {r.trainedDomains.map(d => {
+                      const role = ROLES.find(ro => ro.id === d);
+                      const newLvl = teams[r.teamIdx]?.roles?.[d] || 0;
+                      return (
+                        <span key={d} style={{ fontSize:10, background:"rgba(255,255,255,0.06)",
+                          border:`1px solid ${role?.color}44`, borderRadius:8,
+                          padding:"2px 8px", color: role?.color }}>
+                          🎓 {role?.label} → L{newLvl}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Incidents reminder */}
+        <div style={{ maxWidth:1100, margin:"0 auto 28px", background:"#0d1117",
+          border:"1px solid #2a1a1a", borderRadius:12, padding:20 }}>
+          <div style={{ fontSize:10, color:"#ff4d6d", letterSpacing:3, marginBottom:12 }}>
+            INCIDENTS THIS SPRINT
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+            {incidents.map(inc => (
+              <IncidentCard key={inc.id} inc={inc} allocation={null} />
+            ))}
+          </div>
+        </div>
+
+        {/* Active upgrades strip */}
+        {purchasedUpgrades.size > 0 && (
+          <div style={{ maxWidth:1100, margin:"0 auto 20px", background:"#0d1117",
+            border:"1px solid #1a2a2a", borderRadius:12, padding:"14px 20px" }}>
+            <div style={{ fontSize:10, color:"#aaa", letterSpacing:2, marginBottom:10,
+              fontFamily:"'Space Mono',monospace" }}>🏗 ACTIVE ARCHITECTURAL UPGRADES — BENEFIT ALL TEAMS</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {ARCH_UPGRADES.filter(u => purchasedUpgrades.has(u.id)).map(u => (
+                <div key={u.id} style={{ display:"flex", alignItems:"center", gap:6,
+                  background:`${u.color}10`, border:`1px solid ${u.color}44`,
+                  borderRadius:8, padding:"5px 12px" }}>
+                  <span style={{ fontSize:14 }}>{u.icon}</span>
+                  <div>
+                    <div style={{ fontSize:10, color:u.color, fontWeight:600 }}>{u.label}</div>
+                    <div style={{ fontSize:9, color:"#aaa" }}>{u.benefit}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Continue */}
+        <div style={{ textAlign:"center" }}>
+          <button onClick={() => setScreen("retro")} style={{
+            padding:"16px 48px", borderRadius:12,
+            background:"linear-gradient(135deg,#ffb800,#e09400)",
+            border:"none", color:"#080c10",
+            fontFamily:"'Bebas Neue',sans-serif", fontSize:20, letterSpacing:4,
+            cursor:"pointer"
+          }}>
+            📋 SPRINT REVIEW →
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // ── RETROSPECTIVE SCREEN ────────────────────────────────────────────────────
@@ -708,7 +1172,7 @@ export default function App() {
             <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16,
               padding:20, marginBottom:28, display:"flex", gap:12, flexWrap:"wrap",
               animation:"fadeUp 0.4s ease" }}>
-              <div style={{ fontSize:11, color:"#555", letterSpacing:3, width:"100%", marginBottom:6 }}>SPRINT {round+1} SCORES</div>
+              <div style={{ fontSize:11, color:"#aaa", letterSpacing:3, width:"100%", marginBottom:6 }}>SPRINT {round+1} SCORES</div>
               {retroRoundScores.map((rs, i) => (
                 <div key={i} style={{ flex:1, minWidth:120, background:"rgba(255,255,255,0.03)",
                   border:"1px solid #2a2a2a", borderRadius:10, padding:"10px 14px", textAlign:"center" }}>
@@ -776,7 +1240,7 @@ export default function App() {
                     </div>
                   )}
                   {!isOpen && (
-                    <div style={{ marginTop:10, fontSize:11, color:"#444" }}>
+                    <div style={{ marginTop:10, fontSize:11, color:"#777" }}>
                       Tap to explore principle &amp; real-world example →
                     </div>
                   )}
@@ -805,7 +1269,75 @@ export default function App() {
               <div style={{ fontSize:11, color:"#4dc3ff", letterSpacing:3, marginBottom:8 }}>
                 ⚠ LOOKING AHEAD — SPRINT {round + 2}
               </div>
-              <div style={{ fontSize:12, color:"#888", lineHeight:1.7 }}>{retro.nextHint}</div>
+              <div style={{ fontSize:12, color:"#aaa", lineHeight:1.7 }}>{retro.nextHint}</div>
+            </div>
+          )}
+
+          {/* GM Training Panel */}
+          {round < 5 && (
+            <div style={{ background:"#0d1117", border:"1px solid #2a1a2e", borderRadius:16,
+              padding:24, marginBottom:28, animation:"fadeUp 0.82s ease" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                <div style={{ fontSize:11, color:"#b47dff", letterSpacing:3 }}>🎓 GAME MASTER — APPLY TRAINING</div>
+              </div>
+              <div style={{ fontSize:11, color:"#aaa", marginBottom:16, lineHeight:1.6 }}>
+                Check collected scorecards. For each specialist trained this sprint, bump their role level below.
+                +1 morale is automatically applied per level-up.
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {teams.map((t, tidx) => {
+                  const tcolor = ["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff9f43","#ff4d6d"][tidx] || "#00ff9d";
+                  return (
+                    <div key={t.id} style={{ background:"rgba(255,255,255,0.02)",
+                      border:`1px solid ${tcolor}22`, borderRadius:12, padding:"12px 16px" }}>
+                      <div style={{ fontSize:10, color:tcolor, letterSpacing:2, marginBottom:10,
+                        fontFamily:"'Space Mono',monospace" }}>{t.name.toUpperCase()}</div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {ROLES.map(r => {
+                          const lvl = t.roles?.[r.id] || 0;
+                          return (
+                            <div key={r.id} style={{ display:"flex", flexDirection:"column",
+                              alignItems:"center", gap:4 }}>
+                              <div style={{ fontSize:9, color:"#aaa",
+                                fontFamily:"'Space Mono',monospace" }}>{r.icon}</div>
+                              <div style={{ display:"flex", gap:2 }}>
+                                {[0,1,2].map(l => (
+                                  <button key={l} onClick={() => {
+                                    if (l === lvl) return;
+                                    const moraleDelta = l > lvl ? l - lvl : 0; // +1 morale per level gained
+                                    setTeams(prev => prev.map((team, i) => i !== tidx ? team : {
+                                      ...team,
+                                      roles: { ...team.roles, [r.id]: l },
+                                      morale: Math.min(MORALE_MAX, (team.morale ?? MORALE_START) + moraleDelta),
+                                    }));
+                                  }}
+                                    title={`Set ${r.label} to L${l}`}
+                                    style={{
+                                      width:24, height:24, borderRadius:6,
+                                      border: lvl === l ? `2px solid ${r.color}` : "1px solid #333",
+                                      background: lvl === l ? `${r.color}22` : "transparent",
+                                      color: lvl === l ? r.color : "#444",
+                                      fontSize:10, fontFamily:"'Space Mono',monospace",
+                                      cursor: lvl === l ? "default" : "pointer",
+                                      fontWeight: lvl === l ? 700 : 400,
+                                      transition:"all 0.1s",
+                                    }}>
+                                    {l}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ fontSize:7, color:"#777",
+                                fontFamily:"'Space Mono',monospace", letterSpacing:0.5 }}>
+                                {r.label.split(' ')[0]}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -861,13 +1393,13 @@ export default function App() {
             lineHeight:1, marginBottom:4 }}>DEPLOY</div>
           <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:"clamp(52px,10vw,88px)",
             color:"#ff4d6d", letterSpacing:8, lineHeight:1 }}>OR DIE</div>
-          <div style={{ color:"#555", fontSize:12, letterSpacing:4, marginTop:8, fontFamily:"'Space Mono',monospace" }}>
+          <div style={{ color:"#aaa", fontSize:12, letterSpacing:4, marginTop:8, fontFamily:"'Space Mono',monospace" }}>
             A DEVOPS LIFECYCLE CARD GAME
           </div>
           <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:12, flexWrap:"wrap" }}>
             {["2-12 PLAYERS","6 ROUNDS","~90 MINS"].map(t=>(
               <span key={t} style={{ background:"#ffffff0a", border:"1px solid #333", borderRadius:20,
-                padding:"3px 12px", fontSize:10, color:"#888", letterSpacing:2 }}>{t}</span>
+                padding:"3px 12px", fontSize:10, color:"#aaa", letterSpacing:2 }}>{t}</span>
             ))}
           </div>
         </div>
@@ -888,7 +1420,7 @@ export default function App() {
               }}>{n}</button>
             ))}
           </div>
-          <div style={{ color:"#444", fontSize:10, marginTop:10, fontFamily:"'Space Mono',monospace" }}>
+          <div style={{ color:"#777", fontSize:10, marginTop:10, fontFamily:"'Space Mono',monospace" }}>
             Tip: Each team needs 2-6 real players making decisions together
           </div>
         </div>
@@ -932,7 +1464,7 @@ export default function App() {
             "4. Tech debt compounds! Neglect it and velocity collapses.",
             "5. Most points after 6 rounds wins. Learn DevOps the hard way.",
           ].map(r=>(
-            <div key={r} style={{ fontSize:11, color:"#666", marginBottom:6, lineHeight:1.6 }}>{r}</div>
+            <div key={r} style={{ fontSize:11, color:"#999", marginBottom:6, lineHeight:1.6 }}>{r}</div>
           ))}
         </div>
       </div>
@@ -940,6 +1472,122 @@ export default function App() {
   );
 
   // ── END SCREEN ───────────────────────────────────────────────────────────────
+
+// ─── TEAM BREAKDOWN CARD (end screen) ────────────────────────────────────────
+function TeamBreakdownCard({ t, ti, tcolor }) {
+  const [open, setOpen] = useState(ti === 0);
+  const g = getGrade(t.totalScore, 6);
+  return (
+    <div style={{ background:"#0d1117", border:`1px solid ${tcolor}22`,
+      borderRadius:16, marginBottom:12, overflow:"hidden" }}>
+      {/* Team header */}
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"14px 20px", cursor:"pointer",
+          background: open ? `${tcolor}08` : "transparent" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:20,
+            color:tcolor, letterSpacing:3 }}>{t.name}</div>
+          <div style={{ fontSize:10, color:g.color }}>{g.grade} — {g.label}</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:"#fff", lineHeight:1 }}>
+              {t.totalScore}
+            </div>
+            <div style={{ fontSize:9, color:"#aaa" }}>TOTAL PTS</div>
+          </div>
+          <div style={{ fontSize:14, color:"#aaa" }}>{open ? "▲" : "▼"}</div>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ padding:"0 16px 16px" }}>
+          {/* Summary strip */}
+          <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+            <div style={{ background:"rgba(255,77,109,0.08)", border:"1px solid rgba(255,77,109,0.2)",
+              borderRadius:8, padding:"5px 12px", fontSize:10 }}>
+              ⚠ Debt accrued: <span style={{ color:"#ff4d6d", fontWeight:700 }}>{t.debtTotal}</span>
+            </div>
+            {t.badges.length > 0 && (
+              <div style={{ background:"rgba(255,184,0,0.06)", border:"1px solid rgba(255,184,0,0.2)",
+                borderRadius:8, padding:"5px 12px", fontSize:10, color:"#ffb800" }}>
+                {t.badges.map(b => b.icon + " " + b.label).join(" · ")}
+              </div>
+            )}
+            <div style={{ background:"rgba(255,110,180,0.06)", border:"1px solid rgba(255,110,180,0.15)",
+              borderRadius:8, padding:"5px 12px", fontSize:10 }}>
+              🫀 Final morale: <span style={{ color:"#ff6eb4", fontWeight:700 }}>{t.morale ?? MORALE_START}/10</span>
+            </div>
+          </div>
+
+          {/* Sprint cards grid */}
+          <div style={{ display:"grid",
+            gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:10 }}>
+            {t.rounds.map((rd, ri) => {
+              const sprintScore = rd.score;
+              const scoreColor = sprintScore > 25 ? "#00ff9d" : sprintScore > 12 ? "#ffb800" : "#ff4d6d";
+              return (
+                <div key={ri} style={{ background:"rgba(255,255,255,0.02)",
+                  border:`1px solid ${tcolor}18`, borderRadius:10, padding:"12px 14px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between",
+                    alignItems:"flex-start", marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontSize:9, color:tcolor, letterSpacing:2,
+                        fontFamily:"'Space Mono',monospace" }}>SPRINT {rd.round}</div>
+                      <div style={{ fontSize:10, color:"#aaa", marginTop:1 }}>{rd.phase}</div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontFamily:"'Bebas Neue',sans-serif",
+                        fontSize:26, color:scoreColor, lineHeight:1 }}>+{sprintScore}</div>
+                      <div style={{ fontSize:8, color:"#777" }}>pts</div>
+                    </div>
+                  </div>
+
+                  {/* Allocation pills */}
+                  <div style={{ display:"flex", gap:3, flexWrap:"wrap", marginBottom:8 }}>
+                    {CATEGORIES.map(cat => {
+                      const v = rd.allocation[cat.id] || 0;
+                      return v > 0 ? (
+                        <div key={cat.id} style={{
+                          display:"flex", alignItems:"center", gap:2,
+                          background:`${cat.color}14`, border:`1px solid ${cat.color}33`,
+                          borderRadius:5, padding:"1px 6px",
+                          fontSize:9, color:cat.color, fontFamily:"'Space Mono',monospace" }}>
+                          {cat.icon} {v}
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+
+                  {/* Score breakdown */}
+                  <div style={{ borderTop:"1px solid #1a1a1a", paddingTop:8 }}>
+                    {rd.breakdown.map((b, bi) => (
+                      <div key={bi} style={{ display:"flex", justifyContent:"space-between",
+                        fontSize:9, lineHeight:1.7 }}>
+                        <span style={{ color: b.value < 0 ? "#ff4d6d" : b.color || "rgba(255,255,255,0.4)",
+                          opacity: b.value < 0 ? 1 : 0.7 }}>{b.label}</span>
+                        <span style={{ fontWeight:700, color: b.value < 0 ? "#ff4d6d" : b.color }}>
+                          {b.value > 0 ? "+" : ""}{b.value}
+                        </span>
+                      </div>
+                    ))}
+                    {rd.debtAccrued > 0 && (
+                      <div style={{ fontSize:9, color:"#ff4d6d66", marginTop:3 }}>
+                        ⚠ +{rd.debtAccrued} debt accrued
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
   if (screen === "end") {
     const sorted = [...teams].sort((a,b)=>b.totalScore-a.totalScore);
     const winner = sorted[0];
@@ -953,7 +1601,7 @@ export default function App() {
           @keyframes winner { 0%{transform:scale(1)} 50%{transform:scale(1.03)} 100%{transform:scale(1)} }
           @keyframes confetti { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(720deg);opacity:0} }
         `}</style>
-        <div style={{ maxWidth:600, width:"100%" }}>
+        <div style={{ maxWidth:900, width:"100%" }}>
           <div style={{ textAlign:"center", marginBottom:32 }}>
             <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}>
               <svg style={{ opacity:0.15 }} width="72" height="24" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -973,36 +1621,22 @@ export default function App() {
             <Scoreboard teams={teams} />
           </div>
 
-          {/* Retrospective */}
-          <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:20 }}>
-            <div style={{ fontSize:11, color:"#ffb800", letterSpacing:3, marginBottom:16 }}>POST-GAME RETROSPECTIVE 🔄</div>
-            <div style={{ fontSize:12, color:"#888", lineHeight:1.8 }}>
-              {sorted.map((t,i) => {
-                const g = getGrade(t.totalScore, 6);
-                const topCat = CATEGORIES.reduce((best,c) =>
-                  t.rounds.reduce((s,r)=>s+(r.allocation[c.id]||0),0) > t.rounds.reduce((s,r)=>s+(r.allocation[best.id]||0),0) ? c : best
-                );
-                return (
-                  <div key={t.id} style={{ marginBottom:12, padding:"10px 14px",
-                    background:"rgba(255,255,255,0.02)", borderRadius:8,
-                    borderLeft:`3px solid ${g.color}` }}>
-                    <div style={{ color:"#fff", fontWeight:700, marginBottom:4 }}>{i+1}. {t.name}</div>
-                    <div style={{ fontSize:11 }}>
-                      Favoured <span style={{ color: topCat.color }}>{topCat.label}</span> — 
-                      Total debt accrued: <span style={{ color:"#ff4d6d" }}>{t.debtTotal} pts</span> — 
-                      Badges: {t.badges.length > 0 ? t.badges.map(b=>b.icon).join(" ") : "none earned"}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Per-team round breakdown */}
+          <div style={{ marginBottom:24 }}>
+            <div style={{ fontSize:11, color:"#ffb800", letterSpacing:3, marginBottom:16 }}>📊 DECISION BREAKDOWN — PER TEAM</div>
+            {sorted.map((t, ti) => (
+              <TeamBreakdownCard key={t.id} t={t} ti={ti}
+                tcolor={["#00ff9d","#4dc3ff","#ffb800","#b47dff","#ff4d6d","#ff9f43"][teams.indexOf(t)] || "#00ff9d"}
+              />
+
+            ))}
           </div>
 
           {/* DevOps lessons */}
           <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:16, padding:24, marginBottom:24 }}>
             <div style={{ fontSize:11, color:"#4dc3ff", letterSpacing:3, marginBottom:16 }}>DEVOPS PRINCIPLES YOU JUST LIVED 📚</div>
             {DEVOPS_PRINCIPLES.map((p,i) => (
-              <div key={i} style={{ fontSize:12, color:"#888", padding:"8px 0",
+              <div key={i} style={{ fontSize:12, color:"#aaa", padding:"8px 0",
                 borderBottom:"1px solid #1a1a1a", lineHeight:1.6 }}>{p}</div>
             ))}
           </div>
@@ -1043,7 +1677,7 @@ export default function App() {
         <div>
           <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:24, letterSpacing:6,
             color:"#00ff9d", animation:"glow 3s ease-in-out infinite" }}>DEPLOY OR DIE</div>
-          <div style={{ fontSize:10, color:"#444", letterSpacing:2 }}>DEVOPS LIFECYCLE SIMULATION</div>
+          <div style={{ fontSize:10, color:"#777", letterSpacing:2 }}>DEVOPS LIFECYCLE SIMULATION</div>
           <svg style={{ opacity:0.13, marginTop:5 }} width="48" height="16" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
             <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
@@ -1052,28 +1686,28 @@ export default function App() {
         <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
           {/* Phase indicator */}
           <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
-            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>SPRINT</div>
+            <div style={{ fontSize:9, color:"#aaa", letterSpacing:2 }}>SPRINT</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:"#fff", letterSpacing:2 }}>
               {round+1} / 6
             </div>
           </div>
           {/* Phase name */}
           <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
-            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>PHASE</div>
+            <div style={{ fontSize:9, color:"#aaa", letterSpacing:2 }}>PHASE</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:"#ffb800", letterSpacing:1 }}>
               {phase.name}
             </div>
           </div>
           {/* Active team */}
           <div style={{ background:"#0d1117", border:`1px solid ${teamColor}44`, borderRadius:8, padding:"6px 14px" }}>
-            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>TEAM</div>
+            <div style={{ fontSize:9, color:"#aaa", letterSpacing:2 }}>TEAM</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:teamColor, letterSpacing:1 }}>
               {team?.name}
             </div>
           </div>
           {/* Current round indicator */}
           <div style={{ background:"#0d1117", border:"1px solid #1e2a1e", borderRadius:8, padding:"6px 14px" }}>
-            <div style={{ fontSize:9, color:"#555", letterSpacing:2 }}>INCIDENTS</div>
+            <div style={{ fontSize:9, color:"#aaa", letterSpacing:2 }}>INCIDENTS</div>
             <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:14, color:"#ff4d6d", letterSpacing:1 }}>
               {incidents.length} ACTIVE
             </div>
@@ -1093,7 +1727,7 @@ export default function App() {
       <div style={{ background:"#0a0d0a", borderBottom:"1px solid #1a1a1a", padding:"7px 20px",
         display:"flex", alignItems:"center", gap:10, overflow:"hidden" }}>
         <span style={{ fontSize:10, color:"#00ff9d", letterSpacing:2, whiteSpace:"nowrap" }}>DEVOPS TIP</span>
-        <div style={{ fontSize:11, color:"#555", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tip}</div>
+        <div style={{ fontSize:11, color:"#aaa", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{tip}</div>
       </div>
 
       <div style={{ maxWidth:1100, margin:"0 auto", padding:"20px 16px", display:"grid",
@@ -1105,12 +1739,12 @@ export default function App() {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <div>
                 <div style={{ fontSize:11, color:teamColor, letterSpacing:3, marginBottom:2 }}>CAPACITY ALLOCATION</div>
-                <div style={{ fontSize:12, color:"#555" }}>{phase.subtitle}</div>
+                <div style={{ fontSize:12, color:"#aaa" }}>{phase.subtitle}</div>
               </div>
               <div style={{ textAlign:"right" }}>
                 <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:32, color: totalUsed === maxTokens ? "#00ff9d" : "#ffb800",
                   lineHeight:1 }}>{totalUsed} / {maxTokens}</div>
-                <div style={{ fontSize:10, color:"#555" }}>TOKENS USED</div>
+                <div style={{ fontSize:10, color:"#aaa" }}>TOKENS USED</div>
                 {(roundBonusMap[activeTeamIdx] || 0) > 0 && (
                   <div style={{ fontSize:10, color:"#00ff9d" }}>+1 bonus (debt repayment!)</div>
                 )}
@@ -1126,13 +1760,157 @@ export default function App() {
               ))}
             </div>
 
+            {/* Morale + roles status strip */}
+            {activeTeam && (() => {
+              const { tokenPenalty, suspend } = getMoraleThresholds(activeTeam);
+              const mor = activeTeam.morale ?? MORALE_START;
+              const morColor = mor >= tokenPenalty + 2 ? "#ff6eb4" : mor >= tokenPenalty ? "#ffb800" : "#ff4d6d";
+              return (
+                <div style={{ marginBottom:12, padding:"10px 12px", background:"rgba(255,110,180,0.05)",
+                  border:"1px solid rgba(255,110,180,0.15)", borderRadius:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:10, color:"#ff6eb4", letterSpacing:2 }}>🫀 TEAM MORALE</div>
+                    <div style={{ display:"flex", gap:3 }}>
+                      {Array.from({length:MORALE_MAX}).map((_,i) => (
+                        <div key={i} style={{ width:14, height:14, borderRadius:3,
+                          background: i < mor ? morColor : "#1a1a1a",
+                          border: i === tokenPenalty - 1 ? "1px solid #ffb800" : i === suspend - 1 ? "1px solid #ff4d6d" : "none",
+                          transition:"background 0.3s" }} />
+                      ))}
+                      <span style={{ fontSize:11, color:morColor, marginLeft:6, fontWeight:700 }}>{mor}/10</span>
+                    </div>
+                  </div>
+                  {benefitsSuspended && (
+                    <div style={{ fontSize:10, color:"#ff4d6d", marginBottom:6 }}>⚠ TRAINING BENEFITS SUSPENDED — morale critical</div>
+                  )}
+                  {mor < tokenPenalty && !benefitsSuspended && (
+                    <div style={{ fontSize:10, color:"#ffb800", marginBottom:6 }}>⚠ Low morale: −1 capacity this sprint</div>
+                  )}
+                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {ROLES.map(r => {
+                      const lvl = activeTeam.roles?.[r.id] || 0;
+                      return (
+                        <div key={r.id} title={lvl >= 1 ? (lvl >= 2 ? r.l2desc : r.l1desc) : "Untrained"}
+                          style={{ display:"flex", alignItems:"center", gap:3, padding:"2px 7px",
+                            borderRadius:8, fontSize:10,
+                            background: lvl === 0 ? "rgba(255,255,255,0.03)" : lvl === 1 ? `${r.color}18` : `${r.color}30`,
+                            border: `1px solid ${lvl === 0 ? "#2a2a2a" : r.color + "55"}`,
+                            color: lvl === 0 ? "#444" : r.color }}>
+                          <span>{r.icon}</span>
+                          <span style={{ fontFamily:"'Space Mono',monospace", fontSize:9 }}>
+                            L{lvl}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {CATEGORIES.map(cat => (
-              <TokenSlider key={cat.id} cat={cat} value={allocation[cat.id]}
-                onChange={v=>setAllocation({...allocation,[cat.id]:v})}
+              <TokenSlider key={cat.id} cat={cat}
+                value={allocation[cat.id]}
+                onChange={v => setAllocation({...allocation, [cat.id]:v})}
                 maxTokens={maxTokens} totalUsed={totalUsed} />
             ))}
 
-            {!roundResults ? (
+            {/* ── TRAINING PANEL ── */}
+            {/* ── ARCHITECTURAL UPGRADES PANEL ── */}
+            {roundResults !== "sealed" && (() => {
+              const mySelection = upgradeSelections[activeTeamIdx];
+              const alreadyBoughtOne = !!mySelection;
+              return (
+                <div style={{ marginTop:10, padding:"12px 14px", background:"rgba(255,255,255,0.02)",
+                  border:"1px solid #2a2a2a", borderRadius:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:10, color:"#aaa", letterSpacing:2,
+                      fontFamily:"'Space Mono',monospace" }}>🏗 ARCHITECTURAL UPGRADES</div>
+                    <div style={{ fontSize:9, color:"#aaa", fontFamily:"'Space Mono',monospace" }}>
+                      2T cost · +3 pts bonus · benefits all teams
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                    {ARCH_UPGRADES.map(upg => {
+                      const bought = purchasedUpgrades.has(upg.id);
+                      const selectedByMe = mySelection === upg.id;
+                      const canSelect = !bought && !alreadyBoughtOne && (maxTokens - totalUsed) >= upg.cost;
+                      const canDeselect = selectedByMe;
+                      return (
+                        <div key={upg.id} style={{
+                          display:"flex", alignItems:"flex-start", gap:10, padding:"8px 10px",
+                          borderRadius:8,
+                          cursor: (canSelect || canDeselect) ? "pointer" : "default",
+                          background: bought ? `${upg.color}0a` : selectedByMe ? `${upg.color}18` : "rgba(255,255,255,0.02)",
+                          border: bought ? `1px solid ${upg.color}33` : selectedByMe ? `1px solid ${upg.color}` : "1px solid #222",
+                          opacity: bought || canSelect || selectedByMe ? 1 : 0.4,
+                          transition:"all 0.15s",
+                        }}
+                          onClick={() => {
+                            if (bought) return;
+                            if (selectedByMe) {
+                              const next = {...upgradeSelections}; delete next[activeTeamIdx];
+                              setUpgradeSelections(next);
+                            } else if (canSelect) {
+                              setUpgradeSelections({...upgradeSelections, [activeTeamIdx]: upg.id});
+                            }
+                          }}>
+                          <span style={{ fontSize:18, lineHeight:1.2, flexShrink:0 }}>{upg.icon}</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                              <span style={{ fontSize:11, color: bought ? upg.color : selectedByMe ? upg.color : "#ccc", fontWeight:600 }}>
+                                {upg.label}
+                              </span>
+                              {bought
+                                ? <span style={{ fontSize:9, color:upg.color, fontFamily:"'Space Mono',monospace" }}>✓ ACTIVE</span>
+                                : selectedByMe
+                                  ? <span style={{ fontSize:9, color:upg.color, fontFamily:"'Space Mono',monospace" }}>SELECTED · 2T + 3pts</span>
+                                  : <span style={{ fontSize:9, color:"#aaa", fontFamily:"'Space Mono',monospace" }}>2T · +3pts</span>
+                              }
+                            </div>
+                            <div style={{ fontSize:10, color:"#aaa", marginTop:2, lineHeight:1.4 }}>{upg.benefit}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!alreadyBoughtOne && (maxTokens - totalUsed) < 2 && purchasedUpgrades.size < ARCH_UPGRADES.length && (
+                    <div style={{ marginTop:6, fontSize:9, color:"#aaa", fontFamily:"'Space Mono',monospace" }}>
+                      Need 2 unspent tokens to invest in an upgrade
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {roundResults === "sealed" ? (
+              /* Locked-in confirmation — no scores visible yet */
+              <div style={{ marginTop:16, background:"rgba(0,255,157,0.04)", border:"1px solid #00ff9d33",
+                borderRadius:12, padding:20, animation:"slideIn 0.4s ease", textAlign:"center" }}>
+                <div style={{ fontSize:36, marginBottom:8 }}>🔒</div>
+                <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:"#00ff9d", letterSpacing:4, marginBottom:6 }}>
+                  ALLOCATION LOCKED
+                </div>
+                <div style={{ fontSize:11, color:"#aaa", lineHeight:1.7, marginBottom:20 }}>
+                  {teams[activeTeamIdx]?.name}'s choices are sealed.<br/>
+                  Results stay hidden until all teams have committed.
+                </div>
+                <button onClick={proceedToNextTeamOrReveal} style={{
+                  width:"100%", padding:14, borderRadius:10,
+                  background: activeTeamIdx < teamCount-1
+                    ? "linear-gradient(135deg,#00ff9d,#00cc7a)"
+                    : "linear-gradient(135deg,#ffb800,#e09400)",
+                  border:"none",
+                  color:"#080c10", fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:3,
+                  cursor:"pointer"
+                }}>
+                  {activeTeamIdx < teamCount-1
+                    ? `→ HAND TO ${teams[activeTeamIdx+1]?.name}`
+                    : "🎲 REVEAL ALL RESULTS"}
+                </button>
+              </div>
+            ) : (
+              /* Commit button */
               <button onClick={commitAllocation} disabled={totalUsed === 0}
                 style={{
                   width:"100%", marginTop:16, padding:16, borderRadius:12,
@@ -1146,56 +1924,9 @@ export default function App() {
                 {totalUsed === 0
                   ? "ALLOCATE TOKENS FIRST"
                   : totalUsed < maxTokens
-                    ? `⚡ INITIATE SPRINT — ${maxTokens - totalUsed} TOKEN${maxTokens - totalUsed !== 1 ? "S" : ""} REMAINING`
-                    : "⚡ INITIATE SPRINT"}
+                    ? `⚡ LOCK IN — ${maxTokens - totalUsed} TOKEN${maxTokens - totalUsed !== 1 ? "S" : ""} REMAINING`
+                    : "⚡ LOCK IN ALLOCATION"}
               </button>
-            ) : (
-              <div style={{ marginTop:16, background:"rgba(0,255,157,0.05)", border:"1px solid #00ff9d33",
-                borderRadius:12, padding:20, animation:"slideIn 0.4s ease" }}>
-                <div style={{ fontSize:11, color:"#00ff9d", letterSpacing:3, marginBottom:12 }}>SPRINT RESULTS</div>
-                {roundResults.breakdown.map((b,i) => (
-                  <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:6,
-                    fontSize:12, color: b.value >= 0 ? b.color : "#ff4d6d" }}>
-                    <span>{b.label}</span>
-                    <span style={{ fontWeight:700 }}>{b.value > 0 ? "+" : ""}{b.value}</span>
-                  </div>
-                ))}
-                <div style={{ borderTop:"1px solid #2a2a2a", marginTop:12, paddingTop:12,
-                  display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <span style={{ fontSize:13, color:"#fff" }}>Sprint Score</span>
-                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28,
-                    color: roundResults.score > 20 ? "#00ff9d" : roundResults.score > 10 ? "#ffb800" : "#ff4d6d" }}>
-                    +{roundResults.score}
-                  </span>
-                </div>
-                {roundResults.newBadges.length > 0 && (
-                  <div style={{ marginTop:8, display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {roundResults.newBadges.map(b=>(
-                      <span key={b.id} style={{ background:"#ffb80022", border:"1px solid #ffb80044",
-                        borderRadius:20, padding:"3px 10px", fontSize:11, color:"#ffb800" }}>
-                        {b.icon} {b.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {roundResults.debtAccrued > 0 && (
-                  <div style={{ marginTop:8, fontSize:11, color:"#ff4d6d" }}>
-                    ⚠ +{roundResults.debtAccrued} technical debt accrued
-                  </div>
-                )}
-                <button onClick={nextTeamOrRound} style={{
-                  width:"100%", marginTop:16, padding:14, borderRadius:10,
-                  background: activeTeamIdx < teamCount-1
-                    ? "linear-gradient(135deg,#00ff9d,#00cc7a)"
-                    : "linear-gradient(135deg,#ffb800,#e09400)",
-                  border:"none",
-                  color:"#080c10", fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:3,
-                  cursor:"pointer"
-                }}>
-                  {activeTeamIdx < teamCount-1 ? `→ ${teams[activeTeamIdx+1]?.name}'S TURN` :
-                    round >= 5 ? "📋 SPRINT REVIEW →" : "📋 SPRINT REVIEW →"}
-                </button>
-              </div>
             )}
           </div>
         </div>
@@ -1206,7 +1937,7 @@ export default function App() {
           <div style={{ background:"#0d1117", border:"1px solid #2a1a1a", borderRadius:16, padding:24, marginBottom:16 }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
               <div style={{ fontSize:11, color:"#ff4d6d", letterSpacing:3 }}>INCIDENT DECK — SPRINT {round+1}</div>
-              <span style={{ fontSize:10, color:"#444" }}>{incidents.length} cards active</span>
+              <span style={{ fontSize:10, color:"#777" }}>{incidents.length} cards active</span>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               {incidents.map(inc => (
@@ -1215,7 +1946,7 @@ export default function App() {
             </div>
             {!roundResults && (
               <div style={{ marginTop:14, padding:"10px 14px", background:"rgba(255,184,0,0.05)",
-                border:"1px solid #ffb80022", borderRadius:8, fontSize:11, color:"#666", lineHeight:1.7 }}>
+                border:"1px solid #ffb80022", borderRadius:8, fontSize:11, color:"#999", lineHeight:1.7 }}>
                 💡 <strong style={{ color:"#ffb800" }}>Discuss as a team:</strong> Which of these situations could destroy you this sprint?
                 You won't know the domain until after you initiate. Read the signals — then place your bets.
               </div>
@@ -1259,7 +1990,7 @@ export default function App() {
               opacity: i < round ? 0.4 : 1 }}>
               <div style={{ fontSize:9, color: i===round ? teamColor : "#444", letterSpacing:1 }}>S{p.id}</div>
               <div style={{ fontSize:10, color: i===round ? "#fff" : "#555", fontWeight:700, marginTop:2 }}>{p.name}</div>
-              <div style={{ fontSize:9, color:"#444", marginTop:2 }}>{p.tokens}T</div>
+              <div style={{ fontSize:9, color:"#777", marginTop:2 }}>{p.tokens}T</div>
             </div>
           ))}
         </div>

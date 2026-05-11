@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deploy or Die — Game Master Manual</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #e8e4de;
+  font-family: 'Inter', sans-serif;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 16px 60px;
+}
+
+/* A4 page */
+.page {
+  width: 210mm; min-height: 297mm;
+  background: #fff;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.14);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  page-break-after: always;
+}
+
+/* Top stripe — matches game aesthetic */
+.stripe {
+  height: 6px; width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    #1a1a1a 0px, #1a1a1a 20px,
+    #00c873 20px, #00c873 40px,
+    #ff4d6d 40px, #ff4d6d 60px,
+    #4dc3ff 60px, #4dc3ff 80px,
+    #ffb800 80px, #ffb800 100px,
+    #b47dff 100px,#b47dff 120px,
+    #ff9f43 120px,#ff9f43 140px,
+    #ff6eb4 140px,#ff6eb4 160px
+  );
+}
+
+/* Header */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px 12px;
+  border-bottom: 2px solid #1a1a1a;
+  background: #1a1a1a;
+}
+.header-left {}
+.game-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 6px; color: #00ff9d; line-height: 1;
+}
+.doc-title {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  letter-spacing: 3px; color: #555; margin-top: 3px;
+}
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.xebia-logo { opacity: 0.4; }
+.header-note {
+  font-family: 'Space Mono', monospace; font-size: 7px;
+  color: #444; letter-spacing: 1px; text-align: right;
+}
+
+/* Body layout — two columns */
+.body {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+.col { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.col-left { border-right: 1px solid #e8e8e8; }
+
+/* Section blocks */
+.section {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.section-title {
+  font-family: 'Space Mono', monospace; font-size: 7.5px;
+  font-weight: 700; letter-spacing: 2px; color: #1a1a1a;
+  padding-bottom: 4px; border-bottom: 1.5px solid #1a1a1a;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-title .num {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #1a1a1a; color: #fff;
+  font-size: 8px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.section-body { font-size: 8px; line-height: 1.65; color: #333; }
+.section-body p { margin-bottom: 4px; }
+.section-body p:last-child { margin-bottom: 0; }
+.section-body strong { color: #111; font-weight: 700; }
+
+/* Step list */
+.steps { display: flex; flex-direction: column; gap: 3px; }
+.step {
+  display: flex; gap: 7px; align-items: flex-start;
+  font-size: 8px; line-height: 1.6; color: #333;
+}
+.step-num {
+  font-family: 'Space Mono', monospace; font-size: 7px; font-weight: 700;
+  color: #fff; background: #1a1a1a; border-radius: 3px;
+  min-width: 16px; height: 16px; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; margin-top: 1px;
+}
+.step-text strong { color: #111; }
+
+/* Round flow timeline */
+.round-flow {
+  display: flex; align-items: stretch; gap: 0;
+  margin-top: 2px;
+}
+.flow-step {
+  flex: 1; text-align: center; font-size: 6.5px;
+  font-family: 'Space Mono', monospace; letter-spacing: 0.5px;
+  color: #444; padding: 5px 3px;
+  background: #f8f8f8; border: 1px solid #e0e0e0;
+  line-height: 1.5; position: relative;
+}
+.flow-step:not(:last-child)::after {
+  content: "→";
+  position: absolute; right: -7px; top: 50%; transform: translateY(-50%);
+  font-size: 8px; color: #aaa; z-index: 1;
+}
+.flow-step:not(:last-child) { margin-right: 6px; }
+.flow-step .flow-icon { font-size: 12px; display: block; margin-bottom: 3px; }
+.flow-step strong { color: #111; font-size: 7px; display: block; }
+
+/* Domain table */
+.domain-table { width: 100%; border-collapse: collapse; font-size: 7.5px; }
+.domain-table td { padding: 2px 5px; vertical-align: middle; border-bottom: 1px solid #f0f0f0; }
+.domain-table td:first-child { width: 22px; text-align: center; font-size: 11px; }
+.domain-table td:nth-child(2) { font-weight: 600; color: #111; width: 30%; }
+.domain-table td:nth-child(3) { color: #666; font-size: 7px; }
+.domain-table td:last-child { color: #666; font-size: 7px; text-align: right; }
+
+/* Upgrade table */
+.upgrade-table { width: 100%; border-collapse: collapse; font-size: 7.5px; }
+.upgrade-table td { padding: 2.5px 5px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.upgrade-table td:first-child { font-size: 11px; width: 20px; text-align: center; }
+.upgrade-table td:nth-child(2) { font-weight: 700; color: #111; width: 40%; }
+.upgrade-table td:last-child { color: #555; font-size: 7px; line-height: 1.5; }
+
+/* Role table */
+.role-table { width: 100%; border-collapse: collapse; font-size: 7px; }
+.role-table td { padding: 2px 4px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
+.role-table td:first-child { font-size: 10px; width: 18px; text-align: center; }
+.role-table td:nth-child(2) { font-weight: 600; color: #111; width: 30%; }
+.role-table td:nth-child(3) { color: #555; }
+.role-table td:last-child { color: #555; }
+
+/* Morale box */
+.morale-box {
+  background: #fff5fa; border: 1px solid #f0c0d8; border-radius: 6px;
+  padding: 7px 10px; font-size: 7.5px; line-height: 1.65;
+}
+.morale-box strong { color: #c0306a; }
+
+/* Token budget box */
+.budget-box {
+  background: #f8f8f8; border: 1px solid #ddd; border-radius: 6px;
+  padding: 7px 10px;
+}
+.budget-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Space Mono', monospace; font-size: 7px; color: #333;
+  padding: 1px 0;
+}
+.budget-row span:last-child {
+  font-weight: 700; color: #111; font-size: 8px;
+}
+
+/* Tip box */
+.tip-box {
+  background: #f0fff8; border: 1px solid #b0e8cc; border-radius: 6px;
+  padding: 7px 10px; font-size: 7.5px; line-height: 1.65; color: #1a5c38;
+}
+.tip-box strong { color: #006b3c; }
+
+/* Warning box */
+.warn-box {
+  background: #fff8f0; border: 1px solid #f0d0a0; border-radius: 6px;
+  padding: 7px 10px; font-size: 7.5px; line-height: 1.65; color: #7a4000;
+}
+
+/* Footer */
+.footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 20px; border-top: 1.5px solid #1a1a1a;
+  background: #1a1a1a;
+}
+.footer-text {
+  font-family: 'Space Mono', monospace; font-size: 7px;
+  color: #555; letter-spacing: 1.5px;
+}
+.footer-right {
+  font-family: 'Space Mono', monospace; font-size: 7px;
+  color: #444; letter-spacing: 1px;
+}
+
+/* Print */
+@media print {
+  body { background: white; padding: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+  .page { box-shadow: none; width: 210mm; min-height: 297mm; }
+}
+@page { size: A4 portrait; margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="stripe"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="game-title">DEPLOY OR DIE</div>
+      <div class="doc-title">GAME MASTER MANUAL · CONFIDENTIAL</div>
+    </div>
+    <div class="header-right">
+      <svg class="xebia-logo" width="52" height="18" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/>
+        <path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/>
+      </svg>
+      <div class="header-note">6 ROUNDS · 2–6 TEAMS · 60–90 MIN</div>
+    </div>
+  </div>
+
+  <!-- Two-column body -->
+  <div class="body">
+
+    <!-- LEFT COLUMN -->
+    <div class="col col-left">
+
+      <!-- Purpose -->
+      <div class="section">
+        <div class="section-title" style="border-color:#00c873;">🎯 PURPOSE OF THE GAME</div>
+        <div class="section-body" style="background:#f0fff8;border:1px solid #b0e8cc;border-radius:6px;padding:8px 10px;">
+          <p><strong>Each team manages a growing software product through six rounds.</strong> Every round they allocate limited tokens across seven domains — features, security, stability, compliance, performance, tech debt, and morale. Then incidents hit.</p>
+          <p style="margin-top:5px;">The goal is to <strong>score the highest cumulative points</strong> across six rounds by making smart investment decisions: defend against incidents, seize opportunities, train specialists, and invest in architecture — all under real resource constraints.</p>
+          <p style="margin-top:5px;">The deeper learning goal: teams <strong>experience the consequences of DevOps decisions first-hand</strong> — deferred security, ignored debt, and low morale have visible, compounding effects. The game makes abstract principles concrete through consequence, not instruction.</p>
+        </div>
+      </div>
+
+      <!-- Setup -->
+      <div class="section">
+        <div class="section-title"><span class="num">1</span>BEFORE THE GAME</div>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Print one <strong>scorecard</strong> per team. Fill in the <strong>token budget</strong> row before distributing.</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Print the <strong>incident card deck</strong> (A5, one per page). Pre-sort into 6 stacks — one per round — using the <strong>Round Overview sheet</strong>. Cards show which rounds they're eligible for.</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Print the <strong>principles deck</strong> (optional). Useful for retro discussions.</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Open <strong>index.html</strong> on a shared screen. Set team count and names. Click <strong>Start Game</strong>.</div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-text">Brief teams: <em>"You're a startup. Each round you allocate tokens across domains. Incidents hit. Good decisions score. Bad ones cost."</em></div></div>
+        </div>
+      </div>
+
+      <!-- Token budgets -->
+      <div class="section">
+        <div class="section-title"><span class="num">2</span>TOKEN BUDGETS PER ROUND</div>
+        <div class="budget-box">
+          <div class="budget-row"><span>R1 · MVP Launch</span><span>8 tokens</span></div>
+          <div class="budget-row"><span>R2 · Early Growth</span><span>9 tokens</span></div>
+          <div class="budget-row"><span>R3 · Scale-Up</span><span>10 tokens</span></div>
+          <div class="budget-row"><span>R4 · Enterprise Push</span><span>10 tokens</span></div>
+          <div class="budget-row"><span>R5 · Stability War</span><span>11 tokens</span></div>
+          <div class="budget-row"><span>R6 · Platform Maturity</span><span>12 tokens</span></div>
+        </div>
+        <div class="section-body" style="margin-top:2px;"><p>Adjust as needed. <strong>+1 token</strong> per trained role (L1+) unless morale is critical. <strong>−1 token</strong> if morale drops below 3.</p></div>
+      </div>
+
+      <!-- Round flow -->
+      <div class="section">
+        <div class="section-title"><span class="num">3</span>ROUND FLOW</div>
+        <div class="round-flow">
+          <div class="flow-step"><span class="flow-icon">📋</span><strong>ALLOCATE</strong>Teams fill scorecards. Negotiate training &amp; upgrades.</div>
+          <div class="flow-step"><span class="flow-icon">🔒</span><strong>LOCK IN</strong>Each team enters allocation on screen. Screen shows "locked".</div>
+          <div class="flow-step"><span class="flow-icon">🎲</span><strong>REVEAL</strong>Last team clicks Reveal. All scores shown simultaneously.</div>
+          <div class="flow-step"><span class="flow-icon">🎓</span><strong>RETRO</strong>GM applies training. Discuss DevOps principle. Next round.</div>
+        </div>
+      </div>
+
+      <!-- Domains -->
+      <div class="section">
+        <div class="section-title"><span class="num">4</span>DOMAINS &amp; ROLES</div>
+        <table class="domain-table">
+          <tr><td>⚡</td><td>Features</td><td>Product Manager</td><td>Growth &amp; UX</td></tr>
+          <tr><td>🔧</td><td>Tech Debt</td><td>Engineering Lead</td><td>Refactoring</td></tr>
+          <tr><td>🛡</td><td>Security</td><td>Security Lead</td><td>Hardening</td></tr>
+          <tr><td>📡</td><td>Stability</td><td>SRE</td><td>Uptime &amp; monitoring</td></tr>
+          <tr><td>📋</td><td>Compliance</td><td>Compliance Officer</td><td>GDPR · SOC2</td></tr>
+          <tr><td>🚀</td><td>Performance</td><td>Perf. Engineer</td><td>Speed &amp; scale</td></tr>
+          <tr><td>🫀</td><td>Morale</td><td>People Lead</td><td>Team health</td></tr>
+        </table>
+        <div class="section-body"><p><strong>Role levels:</strong> L1 = +1 free token in domain each round. L2 = halves defence threshold (or special benefit). Set levels on the <strong>retro screen</strong> after collecting scorecards.</p></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col">
+
+      <!-- Training -->
+      <div class="section">
+        <div class="section-title"><span class="num">5</span>TRAINING</div>
+        <div class="section-body">
+          <p>A team can train a specialist by <strong>writing it on their scorecard</strong> (Round, Team, Role). They score <strong>zero tokens</strong> in that domain that round — you apply this when entering scores.</p>
+          <p><strong>Cross-team training:</strong> Another team can train that specialist instead, at a cost of <strong>1 token</strong> from the hosting team's pool. Both teams note it on their cards. The training still counts — you apply the level-up on the retro screen.</p>
+          <p>Training is permanent. Each training action raises the role by one level (max L2). <strong>+1 morale</strong> per completed training — apply on retro screen.</p>
+        </div>
+      </div>
+
+      <!-- Morale -->
+      <div class="section">
+        <div class="section-title"><span class="num">6</span>MORALE</div>
+        <div class="morale-box">
+          <p><strong>Starts at 5/10.</strong> The screen tracks this automatically.</p>
+          <p style="margin-top:3px;"><strong>Rises:</strong> +1 per morale token allocated (max +3), +1 per opportunity seized, +1 per training completed.</p>
+          <p style="margin-top:3px;"><strong>Falls:</strong> −1 per undefended critical incident, −1 per 10 debt accrued, −1 if zero morale tokens, −1 per role untrained 3+ rounds.</p>
+          <p style="margin-top:3px;"><strong>Below 3:</strong> −1 capacity token that round. <strong>Below 1:</strong> training benefits suspended.</p>
+        </div>
+      </div>
+
+      <!-- Architectural upgrades -->
+      <div class="section">
+        <div class="section-title"><span class="num">7</span>ARCHITECTURAL UPGRADES</div>
+        <table class="upgrade-table">
+          <tr><td>🤝</td><td>Cross-Functional Teams</td><td>+1 capacity token per round</td></tr>
+          <tr><td>🔗</td><td>Microservices</td><td>Stability incidents: −1 token to defend</td></tr>
+          <tr><td>🔁</td><td>CI/CD Pipeline</td><td>+2 pts/round if any trained role</td></tr>
+          <tr><td>🔐</td><td>DevSecOps / Zero Trust</td><td>Security incidents: −1 token to defend</td></tr>
+          <tr><td>📊</td><td>Observability Platform</td><td>SRE gets +1 free Stability token</td></tr>
+        </table>
+        <div class="warn-box" style="margin-top:5px;">
+          <strong>Cost: 2 tokens</strong> from the buying team's pool. <strong>Only one team can buy each upgrade.</strong> Buying team gets <strong>+3 pts bonus</strong> and the benefit that same round. All other teams get the benefit from the next round onward. Teams must coordinate — only one buyer per upgrade for the whole game.
+        </div>
+      </div>
+
+      <!-- Scoring -->
+      <div class="section">
+        <div class="section-title"><span class="num">8</span>SCORING REFERENCE</div>
+        <div class="section-body">
+          <p><strong>Features:</strong> ×9 pts per token (multiplier drops if tech debt is neglected in later rounds).</p>
+          <p><strong>Incidents defended:</strong> +35% of incident's debt value as bonus pts.</p>
+          <p><strong>Incidents hit:</strong> −debt value as penalty + debt accrued.</p>
+          <p><strong>Opportunities seized:</strong> +18–22 pts if threshold met.</p>
+          <p><strong>Stability bonus:</strong> +5 pts if ≥2 stability tokens allocated.</p>
+          <p><strong>Morale investment:</strong> +3 pts if ≥2 morale tokens allocated.</p>
+          <p style="margin-top:4px;"><strong>Domain lock threshold:</strong> if accrued debt in a domain exceeds <strong>25</strong> AND that domain is hit again — the domain locks. A trained specialist (L1+) must unlock it (costs 1 token, unlocks next round).</p>
+        </div>
+      </div>
+
+      <!-- Retro -->
+      <div class="section">
+        <div class="section-title"><span class="num">9</span>THE RETRO</div>
+        <div class="tip-box">
+          After the reveal, the retro screen shows the DevOps principle for that round. <strong>Collect scorecards. Apply training level-ups on screen.</strong> Then ask the table: <em>"Has anyone experienced this in real life? What was the impact?"</em> — this is the learning moment. Keep it to 3–5 minutes per round.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">DEPLOY OR DIE · XEBIA DEVOPS WORKSHOP · GAME MASTER MANUAL</div>
+    <div class="footer-right">index.html · deploy-or-die-scorecard.html · incident cards · principles deck</div>
+  </div>
+
+</div>
+
+</body>
+</html>

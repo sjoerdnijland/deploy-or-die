@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Deploy or Die 4-Round · Round Reference</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background:#e8e4de; font-family:'Inter',sans-serif;
+  display:flex; flex-direction:column; align-items:center;
+  padding:32px 16px 60px; gap:32px;
+}
+
+/* ── SHARED ── */
+.stripe {
+  height:5px; width:100%;
+  background:repeating-linear-gradient(90deg,
+    #1a1a1a 0px,#1a1a1a 18px, #00c873 18px,#00c873 36px,
+    #ff4d6d 36px,#ff4d6d 54px, #4dc3ff 54px,#4dc3ff 72px,
+    #ffb800 72px,#ffb800 90px, #b47dff 90px,#b47dff 108px);
+}
+.dark-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 16px; background:#1a1a1a;
+}
+.dh-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:5px; color:#00ff9d; line-height:1; }
+.dh-sub { font-family:'Space Mono',monospace; font-size:22px; letter-spacing:2px; color:#555; margin-top:2px; }
+.dh-right { text-align:right; }
+.dh-badge { font-family:'Space Mono',monospace; font-size:22px; color:#444; letter-spacing:1.5px; }
+.xebia { opacity:.35; }
+.white-footer {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:7px 16px; background:#fff; border-top:1.5px solid #1a1a1a;
+  margin-top:auto;
+}
+.wf-text { font-family:'Space Mono',monospace; font-size:12.5px; color:#888; letter-spacing:1px; }
+.dark-footer {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:7px 16px; background:#1a1a1a; margin-top:auto;
+}
+.df-text { font-family:'Space Mono',monospace; font-size:12.5px; color:#555; letter-spacing:1px; }
+svg.xebia path { fill:#1a1a1a; }
+
+/* ══════════════════════════════════════════════
+   DOC 1 — ROUND OVERVIEW (A4, GM)
+   ══════════════════════════════════════════════ */
+.doc-a4 {
+  width:210mm; background:#fff;
+  box-shadow:0 6px 32px rgba(0,0,0,0.14);
+  display:flex; flex-direction:column; overflow:hidden;
+  page-break-after:always;
+}
+.rounds-grid {
+  flex:1; display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  border-bottom:1px solid #e8e8e8;
+}
+.rp {
+  padding:14px 20px; border-right:1px solid #e8e8e8;
+  border-bottom:1px solid #e8e8e8;
+  display:flex; flex-direction:column; gap:6px;
+}
+.rp:nth-child(2n) { border-right:none; }
+.rp:nth-child(3),.rp:nth-child(4) { border-bottom:none; }
+.rp-head {
+  display:flex; align-items:baseline; gap:12px;
+  padding-bottom:5px; border-bottom:2px solid #1a1a1a;
+}
+.rp-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:#1a1a1a; letter-spacing:2px; line-height:1; }
+.rp-name { font-family:'Space Mono',monospace; font-size:15px; color:#666; letter-spacing:2px; }
+.rp-tok { margin-left:auto; font-family:'Space Mono',monospace; font-size:15px; font-weight:700; color:#fff; background:#1a1a1a; padding:2px 7px; border-radius:4px; }
+.rp-sub { font-family:'Space Mono',monospace; font-size:12.5px; letter-spacing:1.5px; font-weight:700; color:#999; margin-bottom:1px; }
+.card-rows { display:flex; flex-direction:column; gap:2px; }
+.cr { display:flex; align-items:center; gap:7px; font-size:10.5px; color:#333; line-height:1.5; }
+.cid { font-family:'Space Mono',monospace; font-size:12.5px; font-weight:700; color:#fff; border-radius:3px; padding:1px 4px; min-width:28px; text-align:center; flex-shrink:0; }
+.cid.sec  { background:#b01030; } .cid.stab { background:#1a6e99; }
+.cid.perf { background:#9a5200; } .cid.comp { background:#6b2bb0; }
+.cid.td   { background:#7a5200; } .cid.opp  { background:#006b3c; }
+.cid.prin { background:#1a1a1a; }
+.nbadge { font-family:'Space Mono',monospace; font-size:5.5px; background:#f0fff8; color:#006b3c; border:1px solid #b0e8cc; border-radius:3px; padding:1px 4px; flex-shrink:0; }
+.last-badge { font-family:'Space Mono',monospace; font-size:5.5px; background:#fff5f0; color:#cc2200; border:1px solid #ffc0b0; border-radius:3px; padding:1px 4px; flex-shrink:0; }
+
+/* Overview legend row */
+.ov-legend {
+  display:flex; gap:16px; padding:7px 16px; border-top:1px solid #eee;
+  flex-wrap:wrap; align-items:center;
+}
+.ov-leg-title { font-family:'Space Mono',monospace; font-size:22px; color:#999; letter-spacing:1px; }
+.ov-leg-item { display:flex; align-items:center; gap:6px; font-size:10.5px; color:#555; }
+
+/* ══════════════════════════════════════════════
+   DOC 2 — SCORECARD (A5)
+   ══════════════════════════════════════════════ */
+.doc-a5 {
+  width:210mm; background:#fff; border:none; border-radius:0;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,0.12);
+  page-break-after:always;
+}
+.team-row { padding:8px 20px; border-bottom:1.5px solid #1a1a1a; }
+.field-label { font-family:'Space Mono',monospace; font-size:12.5px; letter-spacing:1.5px; color:#777; margin-bottom:3px; }
+.field-line { border-bottom:1.5px solid #1a1a1a; height:22px; }
+.sc-section { padding:10px 18px 0; }
+.sc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.sc-title { font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:2px; color:#1a1a1a; }
+.sc-note { font-family:'Space Mono',monospace; font-size:6px; color:#888; }
+table { width:100%; border-collapse:collapse; }
+thead th { font-family:'Space Mono',monospace; font-size:12.5px; letter-spacing:1px; color:#fff; background:#1a1a1a; padding:5px 4px; text-align:center; border:1px solid #1a1a1a; }
+thead th:first-child { text-align:left; padding-left:7px; width:27%; }
+tbody td { padding:0; text-align:center; height:28px; border:1px solid #e0e0e0; vertical-align:middle; }
+tbody td:first-child { text-align:left; padding:0 6px 0 8px; border-left:none; }
+.cat-cell { display:flex; align-items:center; gap:6px; height:28px; }
+.cat-icon { font-size:22px; }
+.cat-name { font-size:16px; font-weight:600; color:#222; white-space:nowrap; }
+.cat-hint { font-size:6px; color:#888; white-space:nowrap; }
+tbody tr:nth-child(even) { background:#fafafa; }
+.role-col { width:9%; font-family:'Space Mono',monospace; font-size:15px; color:#888; text-align:center; }
+.level-boxes { display:flex; gap:2px; justify-content:center; }
+.level-box { width:14px; height:14px; width:14px; border:1px solid #ccc; border-radius:2px; font-size:6px; line-height:10px; text-align:center; color:#888; }
+tbody tr.score-row td { background:#fffbe6; border:1px solid #bbb; height:28px; }
+tbody tr.score-row td:first-child { background:#f8f8f8; border-left:none; border-top:2px solid #1a1a1a; }
+tbody tr.score-row { border-top:2px solid #1a1a1a; }
+tbody tr.morale-row td { background:#fff5fa; border:1px solid #f0c0d8; height:28px; }
+tbody tr.morale-row td:first-child { background:#fff5fa; border-left:none; }
+.bottom-section { padding:8px 18px 0; }
+.bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.sub-label { font-family:'Space Mono',monospace; font-size:22px; font-weight:700; letter-spacing:1.5px; color:#1a1a1a; margin-bottom:4px; }
+.sub-table { width:100%; border-collapse:collapse; }
+.sub-table th { font-family:'Space Mono',monospace; font-size:6px; color:#fff; background:#333; padding:4px 6px; text-align:center; border:1px solid #333; }
+.sub-table th:first-child { text-align:left; padding-left:5px; }
+.sub-table td { height:24px; border:1px solid #e5e5e5; text-align:center; vertical-align:middle; font-size:15px; color:#666; }
+.sub-table td:first-child { text-align:left; padding:0 3px 0 5px; }
+.upgrade-row { display:flex; align-items:center; gap:7px; padding:3px 0; border-bottom:1px dashed #eee; }
+.upgrade-check { width:12px; height:12px; border:1.5px solid #aaa; border-radius:2px; flex-shrink:0; }
+.upgrade-name { font-size:16px; font-weight:700; color:#111; }
+.upgrade-hint { font-size:10.5px; font-weight:700; color:#333; margin-top:1px; }
+.outcome-key { padding:5px 12px 4px; display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; border-top:1px dashed #e0e0e0; }
+.outcome-row { display:flex; align-items:flex-start; gap:6px; font-size:22px; color:#666; line-height:1.4; }
+.outcome-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+.score-box { border:1.5px solid #aaa; border-radius:5px; padding:2px 10px; text-align:center; min-width:48px; background:#fff; }
+.score-box-label { font-family:'Space Mono',monospace; font-size:6px; color:#666; letter-spacing:1px; }
+.score-box-line { border-bottom:1px solid #aaa; height:13px; margin-top:2px; }
+.score-box.green { border-color:#00c873; }
+.score-box.green .score-box-label { color:#00c873; }
+.score-box.green .score-box-line { border-color:#00c873; }
+
+/* ══════════════════════════════════════════════
+   DOC 3 — ROUND REFERENCE CARD (A5, players)
+   ══════════════════════════════════════════════ */
+.step-block { display:flex; flex-direction:column; gap:0; border:1.5px solid #e0e0e0; border-radius:0; overflow:hidden; }
+.step-row { display:flex; align-items:stretch; gap:0; border-bottom:1px solid #eee; }
+.step-row:last-child { border-bottom:none; }
+.step-icon-col { width:48px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 4px; background:#f8f8f8; border-right:1px solid #eee; gap:2px; }
+.step-icon { font-size:22px; line-height:1; }
+.step-n { font-family:'Space Mono',monospace; font-size:22px; font-weight:700; color:#fff; background:#333; border-radius:3px; width:20px; height:20px; display:flex; align-items:center; justify-content:center; }
+.step-content { padding:10px 14px; flex:1; }
+.step-label { font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:#1a1a1a; margin-bottom:3px; }
+.step-desc { font-size:15px; line-height:1.65; color:#333; }
+.step-desc strong { color:#111; font-weight:700; }
+.step-row.discuss .step-icon-col { background:#f0fff8; border-right-color:#c0e8d0; }
+.step-row.reveal .step-icon-col { background:#fff8f0; border-right-color:#f0d8b0; }
+.step-row.retro .step-icon-col { background:#f5f0ff; border-right-color:#d8c8f8; }
+.note-box { background:#fffbe6; border:1px solid #e8d890; border-radius:6px; padding:12px 14px; font-size:10.5px; line-height:1.65; color:#555; }
+.note-box strong { color:#333; }
+.phase-bar { display:flex; gap:3px; }
+.phase-pill { flex:1; text-align:center; padding:4px 2px; font-family:'Space Mono',monospace; font-size:12.5px; border-radius:4px; line-height:1.4; border:1px solid #e0e0e0; background:#f8f8f8; color:#888; }
+.phase-pill strong { display:block; color:#333; font-size:10.5px; }
+
+/* ══════════════════════════════════════════════
+   DOC 4 — PERFECT GAME CARD (A4, GM/closure)
+   ══════════════════════════════════════════════ */
+.pg-body { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.pg-col { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+.pg-col-left { border-right:1px solid #e8e8e8; }
+.pg-section { display:flex; flex-direction:column; gap:7px; }
+.pg-section-title { font-family:'Space Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:2px; color:#1a1a1a; padding-bottom:4px; border-bottom:2px solid #1a1a1a; display:flex; align-items:center; gap:6px; }
+.pg-round-card { background:#f8f8f8; border:1px solid #e0e0e0; border-radius:0; padding:10px 12px; border-left:4px solid #1a1a1a; }
+.pg-round-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.pg-round-name { font-family:'Space Mono',monospace; font-size:15px; font-weight:700; letter-spacing:1.5px; color:#1a1a1a; }
+.pg-round-score { font-family:'Bebas Neue',sans-serif; font-size:28px; color:#00a854; letter-spacing:2px; line-height:1; }
+.pg-round-score span { font-family:'Space Mono',monospace; font-size:15px; color:#888; vertical-align:middle; margin-left:2px; }
+.pg-alloc { display:flex; gap:3px; flex-wrap:wrap; margin-bottom:6px; }
+.pa-chip { font-family:'Space Mono',monospace; font-size:10.5px; padding:2px 6px; border-radius:4px; font-weight:700; }
+.pa-chip.feat { background:#e6fff3; color:#006b3c; border:1px solid #b0e8cc; }
+.pa-chip.sec  { background:#fff0f2; color:#b01030; border:1px solid #ffb0bc; }
+.pa-chip.stab { background:#eef6ff; color:#1a5c88; border:1px solid #b0cff0; }
+.pa-chip.comp { background:#f5f0ff; color:#5c0eaa; border:1px solid #d0b8f8; }
+.pa-chip.td   { background:#fff8e6; color:#7a5200; border:1px solid #f0d890; }
+.pa-chip.perf { background:#fff4ec; color:#9a5200; border:1px solid #f0c8a0; }
+.pa-chip.mor  { background:#fff5fa; color:#c0306a; border:1px solid #f8c0d8; }
+.pg-lines { display:flex; flex-direction:column; gap:2px; }
+.pg-line { display:flex; justify-content:space-between; font-size:10.5px; line-height:1.6; color:#555; }
+.pg-line.pos { color:#222; }
+.pg-line.neg { color:#cc1a3a; }
+.pg-line .lv { color:#888; font-size:22px; }
+.pg-line .lv.green { color:#006b3c; font-weight:700; }
+.pg-total-bar { display:flex; justify-content:space-between; align-items:center; padding-top:5px; border-top:1.5px solid #ddd; margin-top:2px; }
+.pg-total-label { font-family:'Space Mono',monospace; font-size:15px; font-weight:700; color:#333; }
+.pg-total-score { font-family:'Bebas Neue',sans-serif; font-size:22px; color:#00a854; letter-spacing:2px; }
+.pg-key { background:#f8f8f8; border:1px solid #e0e0e0; border-radius:0; padding:10px 12px; }
+.pg-key-title { font-family:'Space Mono',monospace; font-size:22px; font-weight:700; letter-spacing:2px; color:#1a1a1a; margin-bottom:6px; }
+.pg-key-row { display:flex; align-items:flex-start; gap:6px; font-size:10.5px; color:#333; line-height:1.6; padding:2px 0; border-bottom:1px solid #eee; }
+.pg-key-row:last-child { border-bottom:none; }
+.pg-key-icon { font-size:15px; flex-shrink:0; }
+.pg-final { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1a1a1a; border-radius:0; }
+.pg-final-label { font-family:'Space Mono',monospace; font-size:12.5px; color:#555; letter-spacing:2px; }
+.pg-final-score { font-family:'Bebas Neue',sans-serif; font-size:48px; color:#00ff9d; letter-spacing:4px; line-height:1; }
+.pg-final-sub { font-family:'Space Mono',monospace; font-size:15px; color:#444; }
+.pg-gm-note { background:#fff8f0; border:1px solid #f0d0a0; border-radius:6px; padding:12px 14px; font-size:10.5px; line-height:1.65; color:#7a4000; }
+
+/* Print */
+@media print {
+  body { background:white; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+  .doc-a4 { box-shadow:none; width:210mm; }
+  .doc-a5 { box-shadow:none; border-radius:0; width:210mm; min-height:297mm; }
+  svg.xebia path { fill:white !important; }
+}
+@page { size: A4 portrait; margin:0; }
+</style>
+
+</head>
+<body style="padding:0;background:#fff;">
+<!-- ══ DOC 3: ROUND REFERENCE (A5, players) ════════════════════════════════ -->
+<div class="doc-a5">
+  <div class="stripe"></div>
+  <div class="dark-header">
+    <div><div class="dh-title" style="font-size:22px;">DEPLOY OR DIE</div><div class="dh-sub">HOW A ROUND WORKS · 4-ROUND EDITION · GIVE ONE TO EACH TEAM</div></div>
+    <svg class="xebia" width="40" height="14" viewBox="0 0 708 238" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M342.7 108.746H276.205C280.175 93.6851 294.069 83.6447 308.956 83.6447C326.82 83.6447 338.73 93.6851 342.7 108.746ZM276.205 131.838H373.466V125.814C373.466 109.75 370.488 96.6972 361.556 85.6528C348.654 67.5802 328.805 57.5398 308.956 57.5398C292.084 57.5398 276.205 65.5721 264.296 77.6205C252.386 89.669 246.432 104.73 246.432 121.798C246.432 137.863 253.379 154.931 264.296 166.98C277.198 180.032 292.084 185.052 309.949 185.052C336.745 185.052 357.586 169.992 367.511 142.883H336.745C330.79 152.923 319.873 157.943 307.964 157.943C291.092 159.951 278.19 148.907 276.205 131.838ZM417.134 123.806C417.134 102.721 432.02 86.6569 451.87 86.6569C471.719 86.6569 486.605 103.725 486.605 122.802C486.605 142.883 471.719 158.947 449.885 158.947C433.013 159.952 417.134 143.887 417.134 123.806ZM416.141 71.5963V22.3986H388.353V184.048H416.141V174.008C428.051 183.044 438.968 187.06 453.854 187.06C469.734 187.06 482.636 182.04 493.553 173.004C508.439 159.951 516.379 141.879 516.379 122.802C516.379 104.73 508.439 87.6609 495.538 74.6084C483.628 63.564 469.734 58.5438 453.854 58.5438C438.968 58.5438 427.058 62.56 416.141 71.5963ZM536.228 62.56H563.024V185.052H536.228V62.56ZM536.228 22.3986H563.024V49.5075H536.228V22.3986ZM609.67 121.798C609.67 101.717 625.549 86.6569 644.406 86.6569C662.27 86.6569 678.149 102.721 678.149 123.806C678.149 142.883 662.27 158.947 644.406 158.947C625.549 157.943 609.67 142.883 609.67 121.798ZM681.126 185.052H707.923V62.56H681.126V76.6165C673.187 64.5681 660.285 58.5438 643.413 58.5438C625.549 58.5438 610.662 64.5681 598.753 77.6205C586.843 89.669 580.888 105.734 580.888 122.802C580.888 159.951 607.685 187.06 643.413 187.06C662.27 187.06 674.179 182.04 681.126 168.988V185.052Z" fill="white"/><path d="M1.28931 237.265H74.7309L154.127 156.942L233.524 237.265H307.958L191.84 118.788L308.95 0.312256H234.516L154.127 81.6392L73.7384 0.312256H0.296875L117.406 118.788L1.28931 237.265Z" fill="white"/></svg>
+  </div>
+  <div style="padding:14px 20px;display:flex;flex-direction:column;gap:12px;flex:1;">
+    <div class="phase-bar">
+      <div class="phase-pill"><strong>R1</strong>MVP · 8T</div>
+      <div class="phase-pill"><strong>R2</strong>Growth · 9T</div>
+      <div class="phase-pill"><strong>R3</strong>Scale · 10T</div>
+      <div class="phase-pill"><strong>R4</strong>Enterprise · 11T</div>
+    </div>
+    <div class="step-block">
+      <div class="step-row"><div class="step-icon-col"><div class="step-n">1</div><div class="step-icon">📋</div></div><div class="step-content"><div class="step-label">DISTRIBUTE &amp; BRIEF <span style="color:#888;font-size:22px;">· 3 MIN</span></div><div class="step-desc">Receive your scorecard and token budget. The GM briefly introduces the incident cards in play this round. Start your team discussion.</div></div></div>
+      <div class="step-row"><div class="step-icon-col"><div class="step-n">2</div><div class="step-icon">✏️</div></div><div class="step-content"><div class="step-label">TEAMS ALLOCATE <span style="color:#888;font-size:22px;">· 5 MIN</span></div><div class="step-desc">Fill in your scorecard. Allocate all tokens across the seven domains. Decide on <strong>training</strong> (zero tokens in that domain), <strong>upgrades</strong> (2T, +3 pts), or cross-team trades. Hand scorecard to GM when done.</div></div></div>
+      <div class="step-row discuss"><div class="step-icon-col"><div class="step-n">3</div><div class="step-icon">💬</div></div><div class="step-content"><div class="step-label">DISCUSS INCIDENT CARD <span style="color:#888;font-size:22px;">· 6 MIN</span></div><div class="step-desc">The GM hands each team <strong>one incident card</strong>. Read it together and discuss the question on the card. <em>Has anyone experienced something like this? What should the team have done?</em></div></div></div>
+      <div class="step-row reveal"><div class="step-icon-col"><div class="step-n">4</div><div class="step-icon">🎲</div></div><div class="step-content"><div class="step-label">REVEAL &amp; COMPARE <span style="color:#888;font-size:22px;">· 3 MIN</span></div><div class="step-desc">Scores revealed for all teams simultaneously. Compare allocations — who defended what? Who invested in architecture? Who took risks?</div></div></div>
+      <div class="step-row retro"><div class="step-icon-col"><div class="step-n">5</div><div class="step-icon">📚</div></div><div class="step-content"><div class="step-label">DEVOPS PRINCIPLE <span style="color:#888;font-size:22px;">· 3 MIN</span></div><div class="step-desc">The GM draws <strong>one principle card</strong> for this round. Short table discussion: <em>Does this connect to what just happened?</em></div></div></div>
+    </div>
+    <div class="note-box">
+      <strong>Token budget</strong> = base + 1 per trained role (L1+) + upgrades − morale penalty.<br>
+      <strong>Morale below 3</strong> = −1 token. <strong>Below 1</strong> = training benefits suspended.<br>
+      <strong>Arch upgrade</strong>: costs 2T, earns +3 pts, benefits ALL teams (buyer: same round; others: next round). Only one team can buy each upgrade.
+    </div>
+  </div>
+  <div class="dark-footer">
+    <div class="df-text">DEPLOY OR DIE · XEBIA · 4-ROUND EDITION</div>
+    <div class="df-text">4 ROUNDS · 5 STEPS · ~20 MIN PER ROUND</div>
+  </div>
+</div>
+</body>
+</html>
